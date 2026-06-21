@@ -3,11 +3,12 @@ services:
     name: pair-os
     runtime: node
     buildCommand: |
+      export NODE_ENV=development
       rm -rf server/prisma/client prisma/client
-      NODE_ENV=development npm install
+      npm install
       npm run build
       cd server
-      NODE_ENV=development npm install
+      npm install
       npx prisma generate --schema=./prisma/schema.prisma
       npx prisma db push --accept-data-loss --schema=./prisma/schema.prisma
       npm run build
