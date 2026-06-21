@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String
+  avatar        String?
+  timezone      String    @default("Asia/Shanghai")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Profile fields
+  onboardingCompleted Boolean @default(false) @map("onboarding_completed")
+  mainLine    String?   @map("main_line")
+  deadline    DateTime? @map("deadline")
+  subLines    String?   @map("sub_lines") // JSON array string
+
+  // Preferences
+  likesTimer          Boolean @default(true) @map("likes_timer")
+  defaultVisibility   String  @default("solo") @map("default_visibility")
+  reminderEnabled     Boolean @default(true) @map("reminder_enabled")
+  doNotDisturbStart   String? @map("do_not_disturb_start")
+  doNotDisturbEnd     String? @map("do_not_disturb_end")
+  maxDailyReminders   Int     @default(5) @map("max_daily_reminders")
+
+  // AI config (JSON string: { baseUrl, apiKey, model, enabled })
+  aiConfig    String?   @map("ai_config")
+
+  // Relations
+  actions   Action[]
+  events    ActionEvent[]
+  
+  // Partnership
+  partnerOf Partnership? @relation("UserPartnerOf")
+  partnerWith Partnership? @relation("UserPartnerWith")
+
+  @@map("users")
+}
+
+model Action {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  title           String
+  state           String    @default("active") // active, away, blocked, completed, partial
+  startedAt       DateTime? @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  totalDurationMs Int       @default(0) @map("total_duration_ms")
+  awayDurationMs  Int       @default(0) @map("away_duration_ms")
+  lastAwayAt      DateTime? @map("last_away_at")
+  awayReason      String?   @map("away_reason")
+  blockedReason   String?   @map("blocked_reason")
+  result          String?   // completed, partial, abandoned
+  resultNote      String?   @map("result_note")
+  completionPercent Int?    @map("completion_percent")
+  visibility      String    @default("solo") // solo, visible, needs_verification
+  needsVerification Boolean @default(false) @map("needs_verification")
+  evidenceUrl     String?   @map("evidence_url")
+  evidenceText    String?   @map("evidence_text")
+  mainLine        String?   @map("main_line")
+  tags            String?   // JSON array string
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events ActionEvent[]
+
+  @@map("actions")
+}
+
+model ActionEvent {
+  id        String   @id @default(cuid())
+  actionId  String   @map("action_id")
+  userId    String   @map("user_id")
+  type      String   // created, started, away, resumed, blocked, unblocked, ended
+  timestamp DateTime @default(now())
+  data      String?  // JSON string for extra data
+
+  action Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("action_events")
+}
+
+model Partnership {
+  id          String   @id @default(cuid())
+  userId      String   @unique @map("user_id")
+  partnerId   String   @unique @map("partner_id")
+  status      String   @default("pending") // pending, active, ended
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user    User @relation("UserPartnerOf", fields: [userId], references: [id], onDelete: Cascade)
+  partner User @relation("UserPartnerWith", fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@map("partnerships")
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  actionId  String?  @map("action_id")
+  message   String
+  scheduledAt DateTime @map("scheduled_at")
+  confirmed Boolean  @default(false)
+  dismissed Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("reminders")
+}
+
+model DailyReport {
+  id            String   @id @default(cuid())
+  date          String   // YYYY-MM-DD
+  partnershipId String   @map("partnership_id")
+  
+  // User 1 data
+  user1Id       String   @map("user1_id")
+  user1Name     String   @map("user1_name")
+  user1Summary  String?  @map("user1_summary")
+  user1Actions  String?  @map("user1_actions") // JSON string of action snapshots
+  user1Duration Int      @default(0) @map("user1_duration")
+  
+  // User 2 data
+  user2Id       String   @map("user2_id")
+  user2Name     String   @map("user2_name")
+  user2Summary  String?  @map("user2_summary")
+  user2Actions  String?  @map("user2_actions")
+  user2Duration Int      @default(0) @map("user2_duration")
+  
+  // Shared
+  mutualMessage String?  @map("mutual_message")
+  aiSummary     String?  @map("ai_summary")
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  @@unique([date, partnershipId])
+  @@map("daily_reports")
+}

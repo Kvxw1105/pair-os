@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: pair-os
+    runtime: node
+    buildCommand: |
+      # Build frontend
+      npm install
+      npm run build
+      # Build backend
+      cd server
+      npm install
+      npx prisma generate
+      npx prisma db push --accept-data-loss
+      npm run build
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        value: file:./prod.db
+      - key: JWT_SECRET
+        generateValue: true
+    healthCheckPath: /health
+    plan: free
+    disk:
+      name: pair-os-data
+      mountPath: /opt/render/project/src/server
+      sizeGB: 1
