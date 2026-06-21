@@ -145,7 +145,7 @@ router.patch('/:id/state', async (req: AuthRequest, res) => {
     });
 
     // Create event
-    let eventType = data.state;
+    let eventType: string = data.state;
     if (data.state === 'active' && existing.state === 'away') eventType = 'resumed';
     if (data.state === 'active' && existing.state === 'blocked') eventType = 'unblocked';
 

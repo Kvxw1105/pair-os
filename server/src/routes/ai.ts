@@ -146,7 +146,7 @@ router.post('/test', async (req: AuthRequest, res) => {
       return;
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
     if (data.choices?.[0]?.message?.content) {
       res.json({ success: true, message: '连接成功' });
     } else {
@@ -237,7 +237,7 @@ ${note ? `补充说明：${note}` : ''}
       return;
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
     const suggestion = data.choices?.[0]?.message?.content?.trim() || '先尝试运行一下，看看会发生什么。';
 
     res.json({ suggestion });
@@ -292,7 +292,7 @@ router.post('/refine', async (req: AuthRequest, res) => {
       return;
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
     const refined = data.choices?.[0]?.message?.content?.trim() || '';
 
     // Parse steps
@@ -425,7 +425,7 @@ ${actionList}`;
       return;
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
     const insight = data.choices?.[0]?.message?.content?.trim() || '继续行动，数据会告诉你更多。';
 
     res.json({ insight });

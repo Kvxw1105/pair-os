@@ -70,8 +70,14 @@ router.get('/:date', async (req: AuthRequest, res) => {
     // If not found, auto-generate from actions
     if (!report) {
       const partnerId = partnership.userId === req.user!.id ? partnership.partnerId : partnership.userId;
-      const partnerUser = partnership.userId === req.user!.id ? partnership.partner : user?.partnerWith?.user;
-      const partnerName = partnerUser?.name || '伙伴';
+      let partnerName = '伙伴';
+      try {
+        const partnerUser = await prisma.user.findUnique({
+          where: { id: partnerId },
+          select: { name: true },
+        });
+        if (partnerUser?.name) partnerName = partnerUser.name;
+      } catch { /* fallback */ }
 
       // Fetch today's actions for both users
       const myActions = await prisma.action.findMany({
