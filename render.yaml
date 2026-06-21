@@ -24,7 +24,3 @@ services:
         generateValue: true
     healthCheckPath: /health
     plan: free
-    disk:
-      name: pair-os-data
-      mountPath: /opt/render/project/src/server
-      sizeGB: 1
