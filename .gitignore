@@ -14,6 +14,8 @@ server/.env
 *.db
 *.db-journal
 server/prisma/migrations/
+server/prisma/client/
+prisma/client/
 
 # Logs
 logs/
