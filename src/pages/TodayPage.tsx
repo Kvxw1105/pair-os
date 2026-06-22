@@ -41,6 +41,12 @@ export function TodayPage() {
   const [refinedSteps, setRefinedSteps] = useState<string[] | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [logTitle, setLogTitle] = useState('');
+  const [logDuration, setLogDuration] = useState('');
+  const [logResult, setLogResult] = useState<'completed' | 'partial' | 'abandoned'>('completed');
+  const [logNote, setLogNote] = useState('');
+  const [logLoading, setLogLoading] = useState(false);
 
   const profile = state.profile;
 
@@ -78,6 +84,32 @@ export function TodayPage() {
       console.error('Refine failed:', err);
     } finally {
       setAiRefining(false);
+    }
+  };
+
+  const handleLogAction = async () => {
+    if (!logTitle.trim() || !logDuration.trim()) return;
+    const minutes = parseInt(logDuration, 10);
+    if (isNaN(minutes) || minutes <= 0) return;
+    setLogLoading(true);
+    try {
+      await actionDispatch.logAction(
+        logTitle.trim(),
+        minutes,
+        logResult,
+        logResult === 'completed' ? 100 : logResult === 'partial' ? 50 : null,
+        logNote.trim(),
+        profile?.preferences.defaultVisibility || 'solo'
+      );
+      setShowLogModal(false);
+      setLogTitle('');
+      setLogDuration('');
+      setLogResult('completed');
+      setLogNote('');
+    } catch (err) {
+      console.error('Log action failed:', err);
+    } finally {
+      setLogLoading(false);
     }
   };
 
@@ -184,6 +216,15 @@ export function TodayPage() {
               <Zap size={18} strokeWidth={2.5} />
             </motion.button>
           </div>
+
+          {/* Log Action Button */}
+          <motion.button
+            onClick={() => setShowLogModal(true)}
+            className="mt-2 text-xs text-pair-textMuted/60 hover:text-pair-accent transition-colors flex items-center gap-1"
+            whileHover={{ x: 2 }}
+          >
+            忘了开始？补记一项 →
+          </motion.button>
 
           <AnimatePresence>
             {showSuggestions && (
@@ -595,6 +636,115 @@ export function TodayPage() {
             </motion.div>
           )}
         </AnimatePresence>
+        {/* Log Action Modal */}
+        <AnimatePresence>
+          {showLogModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 z-50 flex items-end justify-center bg-black/20 backdrop-blur-md"
+              onClick={() => setShowLogModal(false)}
+            >
+              <motion.div
+                initial={{ y: '100%', opacity: 0.5 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: '100%', opacity: 0.5 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="w-full max-w-lg bg-gradient-to-t from-pair-surface to-pair-surface/95 rounded-t-[28px] p-6 shadow-floating-lg border-t border-pair-border/30 backdrop-blur-lg"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="w-10 h-1 bg-gradient-to-r from-pair-border/60 to-pair-border/30 rounded-full mx-auto mb-6" />
+                <h3 className="text-lg font-bold text-pair-text mb-1">补记行动</h3>
+                <p className="text-sm text-pair-textMuted/70 mb-5">做完之后才想起来？没关系，补上去。</p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-pair-textMuted/70 mb-1.5 block">做了什么</label>
+                    <input
+                      type="text"
+                      value={logTitle}
+                      onChange={(e) => setLogTitle(e.target.value)}
+                      placeholder="例如：阅读30分钟"
+                      className="w-full px-4 py-3 bg-pair-surfaceAlt/60 rounded-2xl border border-pair-border/40 text-sm text-pair-text focus:border-pair-primary/30 focus:outline-none focus:ring-2 focus:ring-pair-primary/8 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-pair-textMuted/70 mb-1.5 block">用时（分钟）</label>
+                    <input
+                      type="number"
+                      value={logDuration}
+                      onChange={(e) => setLogDuration(e.target.value)}
+                      placeholder="30"
+                      min={1}
+                      max={1440}
+                      className="w-full px-4 py-3 bg-pair-surfaceAlt/60 rounded-2xl border border-pair-border/40 text-sm text-pair-text focus:border-pair-primary/30 focus:outline-none focus:ring-2 focus:ring-pair-primary/8 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-pair-textMuted/70 mb-1.5 block">结果</label>
+                    <div className="flex gap-2">
+                      {[
+                        { key: 'completed' as const, label: '完成', color: 'from-pair-success to-emerald-500' },
+                        { key: 'partial' as const, label: '部分', color: 'from-pair-warn to-amber-500' },
+                        { key: 'abandoned' as const, label: '放弃', color: 'from-pair-text to-slate-500' },
+                      ].map((opt) => (
+                        <motion.button
+                          key={opt.key}
+                          onClick={() => setLogResult(opt.key)}
+                          className={`flex-1 py-2.5 rounded-2xl text-sm font-medium transition-all ${
+                            logResult === opt.key
+                              ? `bg-gradient-to-r ${opt.color} text-white shadow-card`
+                              : 'bg-pair-surfaceAlt/60 border border-pair-border/40 text-pair-textSecondary hover:bg-pair-surfaceAlt'
+                          }`}
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                        >
+                          {opt.label}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-pair-textMuted/70 mb-1.5 block">备注（可选）</label>
+                    <textarea
+                      value={logNote}
+                      onChange={(e) => setLogNote(e.target.value)}
+                      placeholder="记录一下当时的情况..."
+                      rows={2}
+                      className="w-full px-4 py-3 bg-pair-surfaceAlt/60 rounded-2xl border border-pair-border/40 text-sm text-pair-text focus:border-pair-primary/30 focus:outline-none focus:ring-2 focus:ring-pair-primary/8 resize-none transition-all"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <motion.button
+                      onClick={() => setShowLogModal(false)}
+                      className="flex-1 py-3.5 bg-pair-surfaceAlt/60 rounded-2xl text-sm font-medium text-pair-textSecondary border border-pair-border/40 hover:bg-pair-surfaceAlt transition-all"
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      取消
+                    </motion.button>
+                    <motion.button
+                      onClick={handleLogAction}
+                      disabled={logLoading || !logTitle.trim() || !logDuration.trim()}
+                      className="flex-1 py-3.5 bg-gradient-to-r from-pair-primary to-pair-primaryMuted text-white rounded-2xl text-sm font-medium shadow-glow-primary hover:shadow-glow-primary transition-all disabled:opacity-50"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      {logLoading ? '保存中...' : '确认补记'}
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </motion.div>
     </div>
   );
