@@ -285,4 +285,25 @@ router.post('/log', async (req: AuthRequest, res) => {
   }
 });
 
+router.delete('/:id', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.action.findFirst({
+      where: { id, userId: req.user!.id },
+    });
+    if (!existing) {
+      res.status(404).json({ error: 'Action not found' });
+      return;
+    }
+
+    await prisma.actionEvent.deleteMany({ where: { actionId: id } });
+    await prisma.action.delete({ where: { id } });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete action error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

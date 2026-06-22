@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppState, useApi } from '../stores/AppStore';
+import { useAppState, useApi, useActionDispatch } from '../stores/AppStore';
 import { formatDate, formatTime, formatDuration, getStateLabel, getStateColor } from '../utils/time';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DreamParticles } from '../components/DreamParticles';
 import { GlowingOrb } from '../components/DreamEffects';
-import { ArrowLeft, ChevronDown, ChevronUp, Clock, Pause, AlertTriangle, CheckCircle2, Circle, XCircle, Sparkles, Loader2, RefreshCw, TrendingUp, Activity } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Clock, Pause, AlertTriangle, CheckCircle2, Circle, XCircle, Sparkles, Loader2, RefreshCw, TrendingUp, Activity, Trash2 } from 'lucide-react';
 import type { ActionItem } from '../types';
 
 const stateIcons: Record<string, typeof CheckCircle2> = {
@@ -22,11 +22,13 @@ export function TimelinePage() {
   const navigate = useNavigate();
   const state = useAppState();
   const api = useApi();
+  const actionDispatch = useActionDispatch();
   const myActions = state.actions.filter((a) => a.userId === state.profile?.id);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [insight, setInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchInsight = async () => {
     if (!api.isAuthenticated()) return;
@@ -40,6 +42,18 @@ export function TimelinePage() {
       setInsightError(true);
     } finally {
       setInsightLoading(false);
+    }
+  };
+
+  const handleDelete = async (actionId: string) => {
+    if (!confirm('确定删除这条行动记录吗？此操作不可撤销。')) return;
+    setDeletingId(actionId);
+    try {
+      await actionDispatch.deleteAction(actionId);
+    } catch (err) {
+      console.error('Delete action failed:', err);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -303,6 +317,22 @@ export function TimelinePage() {
                                   <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${getStateColor(action.state)}`}>
                                     {getStateLabel(action.state)}
                                   </span>
+                                  {action.state !== 'active' && (
+                                    <motion.button
+                                      onClick={() => handleDelete(action.id)}
+                                      className="p-1.5 rounded-lg text-pair-textMuted/40 hover:text-pair-danger hover:bg-pair-danger/10 transition-colors opacity-0 group-hover/item:opacity-100"
+                                      whileHover={{ scale: 1.2 }}
+                                      whileTap={{ scale: 0.9 }}
+                                      disabled={deletingId === action.id}
+                                      title="删除"
+                                    >
+                                      {deletingId === action.id ? (
+                                        <Loader2 size={12} className="animate-spin text-pair-textMuted" />
+                                      ) : (
+                                        <Trash2 size={12} />
+                                      )}
+                                    </motion.button>
+                                  )}
                                 </div>
                               </motion.div>
                             );

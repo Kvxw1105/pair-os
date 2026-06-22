@@ -177,4 +177,5 @@ export type AppAction =
   | { type: 'CONFIRM_REMINDER'; reminderId: string }
   | { type: 'DISMISS_REMINDER'; reminderId: string }
   | { type: 'UPDATE_ACTION_TITLE'; actionId: string; title: string }
-  | { type: 'UPDATE_ACTION_VISIBILITY'; actionId: string; visibility: Visibility };
+  | { type: 'UPDATE_ACTION_VISIBILITY'; actionId: string; visibility: Visibility }
+  | { type: 'DELETE_ACTION'; actionId: string }

@@ -108,7 +108,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
           maxDailyReminders: 5,
         },
       };
-      return next({ profile, isOnboarding: false, actions: [], events: [] });
+      return next({ profile, isOnboarding: false });
     }
 
     case 'LOGOUT': {
@@ -243,6 +243,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'DISMISS_REMINDER': return next({ reminders: state.reminders.filter((r) => r.id !== action.reminderId) });
     case 'UPDATE_ACTION_TITLE': return next({ actions: state.actions.map((a) => a.id === action.actionId ? { ...a, title: action.title, updatedAt: now() } : a) });
     case 'UPDATE_ACTION_VISIBILITY': return next({ actions: state.actions.map((a) => a.id === action.actionId ? { ...a, visibility: action.visibility, updatedAt: now() } : a) });
+    case 'DELETE_ACTION': return next({ actions: state.actions.filter((a) => a.id !== action.actionId) });
 
     default: return state;
   }
@@ -292,6 +293,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     api.getActions().then((actions) => {
       dispatch({ type: 'SYNC_ACTIONS', actions: actions.map((a: any) => ({
         ...a,
+        tags: a.tags ? JSON.parse(a.tags) : [],
         startedAt: a.startedAt ? new Date(a.startedAt).getTime() : null,
         endedAt: a.endedAt ? new Date(a.endedAt).getTime() : null,
         lastAwayAt: a.lastAwayAt ? new Date(a.lastAwayAt).getTime() : null,
@@ -344,6 +346,7 @@ export function useActionDispatch() {
           const action = await api.createAction(title, visibility);
           dispatch({ type: 'SYNC_ACTIONS', actions: [...state.actions, {
             ...action,
+            tags: action.tags ? JSON.parse(action.tags) : [],
             startedAt: action.startedAt ? new Date(action.startedAt).getTime() : null,
             endedAt: action.endedAt ? new Date(action.endedAt).getTime() : null,
             lastAwayAt: action.lastAwayAt ? new Date(action.lastAwayAt).getTime() : null,
@@ -406,6 +409,7 @@ export function useActionDispatch() {
           const action = await api.logAction(title, durationMinutes, result, completionPercent, note, visibility);
           dispatch({ type: 'SYNC_ACTIONS', actions: [...state.actions, {
             ...action,
+            tags: action.tags ? JSON.parse(action.tags) : [],
             startedAt: action.startedAt ? new Date(action.startedAt).getTime() : null,
             endedAt: action.endedAt ? new Date(action.endedAt).getTime() : null,
             lastAwayAt: action.lastAwayAt ? new Date(action.lastAwayAt).getTime() : null,
@@ -448,6 +452,17 @@ export function useActionDispatch() {
         } catch { /* fallback to local */ }
       }
       dispatch({ type: 'END_ACTION', actionId, result: frontendResult as any, completionPercent: completionPercent ?? null, note: note ?? '' });
+    },
+
+    async deleteAction(actionId: string) {
+      if (api.isAuthenticated()) {
+        try {
+          await api.deleteAction(actionId);
+          dispatch({ type: 'DELETE_ACTION', actionId });
+          return;
+        } catch { /* fallback to local */ }
+      }
+      dispatch({ type: 'DELETE_ACTION', actionId });
     },
   };
 }

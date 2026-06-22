@@ -152,6 +152,12 @@ class ApiClient {
     });
   }
 
+  async deleteAction(id: string) {
+    return this.request(`/actions/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // AI
   async getAiConfig() {
     return this.request('/ai/config');
