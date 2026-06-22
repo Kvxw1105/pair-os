@@ -221,4 +221,68 @@ router.post('/:id/end', async (req: AuthRequest, res) => {
   }
 });
 
+const logSchema = z.object({
+  title: z.string().min(1).max(200),
+  durationMinutes: z.number().int().min(1).max(1440),
+  result: z.enum(['completed', 'partial', 'abandoned']),
+  completionPercent: z.number().int().min(0).max(100).optional().nullable(),
+  note: z.string().optional(),
+  visibility: z.enum(['solo', 'visible', 'needs_verification']).default('solo'),
+});
+
+router.post('/log', async (req: AuthRequest, res) => {
+  try {
+    const data = logSchema.parse(req.body);
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { mainLine: true },
+    });
+    const now = new Date();
+    const durationMs = data.durationMinutes * 60 * 1000;
+
+    const action = await prisma.action.create({
+      data: {
+        userId: req.user!.id,
+        title: data.title,
+        visibility: data.visibility,
+        needsVerification: data.visibility === 'needs_verification',
+        state: data.result === 'completed' ? 'completed' : data.result === 'partial' ? 'partial' : 'completed',
+        startedAt: now,
+        endedAt: now,
+        totalDurationMs: durationMs,
+        result: data.result,
+        resultNote: data.note || null,
+        completionPercent: data.completionPercent || (data.result === 'completed' ? 100 : data.result === 'partial' ? 50 : null),
+        mainLine: user?.mainLine || null,
+      },
+    });
+
+    await prisma.actionEvent.create({
+      data: {
+        actionId: action.id,
+        userId: req.user!.id,
+        type: 'created',
+      },
+    });
+
+    await prisma.actionEvent.create({
+      data: {
+        actionId: action.id,
+        userId: req.user!.id,
+        type: 'ended',
+        data: JSON.stringify({ result: data.result, logged: true }),
+      },
+    });
+
+    res.json(action);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0].message });
+      return;
+    }
+    console.error('Log action error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

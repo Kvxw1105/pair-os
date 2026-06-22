@@ -1,4 +1,4 @@
-import { useReducer, useEffect, createContext, useContext, useCallback, useRef } from 'react';
+import { useReducer, useEffect, createContext, useContext, useCallback, useRef, useState } from 'react';
 import { api } from '../services/api';
 import type {
   AppState, AppAction, ActionItem, ActionEvent, UserProfile, Partner,
@@ -38,68 +38,8 @@ const defaultPartner: Partner = {
   lastActiveAt: now() - 5 * 60 * 1000,
 };
 
-const mockActions: ActionItem[] = [
-  {
-    id: 'act_1', title: '阅读《深度学习》第3章', state: 'active',
-    startedAt: now() - 25 * 60 * 1000, endedAt: null,
-    totalDurationMs: 25 * 60 * 1000, awayDurationMs: 0,
-    lastAwayAt: null, awayReason: null, blockedReason: null,
-    result: null, resultNote: '', completionPercent: null,
-    visibility: 'visible', needsVerification: false,
-    evidenceUrl: null, evidenceText: null,
-    mainLine: 'AI 开发学习', tags: ['学习'],
-    createdAt: now() - 26 * 60 * 1000, updatedAt: now() - 26 * 60 * 1000,
-    userId: 'partner_1',
-  },
-  {
-    id: 'act_2', title: '完成英语阅读练习', state: 'completed',
-    startedAt: now() - 3 * 60 * 60 * 1000, endedAt: now() - 2.5 * 60 * 60 * 1000,
-    totalDurationMs: 30 * 60 * 1000, awayDurationMs: 0,
-    lastAwayAt: null, awayReason: null, blockedReason: null,
-    result: 'completed', resultNote: '完成了Unit 3的阅读理解和词汇练习',
-    completionPercent: 100, visibility: 'visible', needsVerification: false,
-    evidenceUrl: null, evidenceText: null,
-    mainLine: '考研英语', tags: ['学习'],
-    createdAt: now() - 3 * 60 * 60 * 1000, updatedAt: now() - 2.5 * 60 * 60 * 1000,
-    userId: 'me',
-  },
-  {
-    id: 'act_3', title: '整理作品集项目结构', state: 'away',
-    startedAt: now() - 5 * 60 * 60 * 1000, endedAt: null,
-    totalDurationMs: 45 * 60 * 1000, awayDurationMs: 0,
-    lastAwayAt: now() - 2 * 60 * 60 * 1000, awayReason: 'external_task',
-    blockedReason: null, result: null, resultNote: '', completionPercent: null,
-    visibility: 'solo', needsVerification: false,
-    evidenceUrl: null, evidenceText: null,
-    mainLine: '作品集', tags: ['创作'],
-    createdAt: now() - 5 * 60 * 60 * 1000, updatedAt: now() - 2 * 60 * 60 * 1000,
-    userId: 'me',
-  },
-  {
-    id: 'act_4', title: '慢跑 30 分钟', state: 'partial',
-    startedAt: now() - 24 * 60 * 60 * 1000, endedAt: now() - 24 * 60 * 60 * 1000 + 20 * 60 * 1000,
-    totalDurationMs: 20 * 60 * 1000, awayDurationMs: 0,
-    lastAwayAt: null, awayReason: null, blockedReason: null,
-    result: 'partial', resultNote: '跑了20分钟，膝盖有点不适，决定提前结束',
-    completionPercent: 50, visibility: 'visible', needsVerification: false,
-    evidenceUrl: null, evidenceText: null,
-    mainLine: '健身减脂', tags: ['健身'],
-    createdAt: now() - 24 * 60 * 60 * 1000, updatedAt: now() - 24 * 60 * 60 * 1000 + 20 * 60 * 1000,
-    userId: 'me',
-  },
-];
-
-const mockEvents: ActionEvent[] = [
-  { id: 'evt_1', actionId: 'act_2', type: 'created', timestamp: now() - 3 * 60 * 60 * 1000 },
-  { id: 'evt_2', actionId: 'act_2', type: 'started', timestamp: now() - 3 * 60 * 60 * 1000 },
-  { id: 'evt_3', actionId: 'act_2', type: 'ended', timestamp: now() - 2.5 * 60 * 60 * 1000, data: { result: 'completed' } },
-  { id: 'evt_4', actionId: 'act_3', type: 'created', timestamp: now() - 5 * 60 * 60 * 1000 },
-  { id: 'evt_5', actionId: 'act_3', type: 'started', timestamp: now() - 5 * 60 * 60 * 1000 },
-  { id: 'evt_6', actionId: 'act_3', type: 'away', timestamp: now() - 2 * 60 * 60 * 1000, data: { reason: 'external_task' } },
-  { id: 'evt_7', actionId: 'act_4', type: 'created', timestamp: now() - 24 * 60 * 60 * 1000 },
-  { id: 'evt_8', actionId: 'act_4', type: 'started', timestamp: now() - 24 * 60 * 60 * 1000 },
-  { id: 'evt_9', actionId: 'act_4', type: 'ended', timestamp: now() - 24 * 60 * 60 * 1000 + 20 * 60 * 1000, data: { result: 'partial' } },
-];
+const mockActions: ActionItem[] = [];
+const mockEvents: ActionEvent[] = [];
 
 function getInitialState(): AppState {
   try {
@@ -319,6 +259,24 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, getInitialState());
   const syncRef = useRef(false);
+  const [autoLoginChecked, setAutoLoginChecked] = useState(false);
+
+  // Auto-login: if token exists, fetch user info
+  useEffect(() => {
+    if (autoLoginChecked) return;
+    if (!api.isAuthenticated()) {
+      setAutoLoginChecked(true);
+      return;
+    }
+    api.getMe()
+      .then((data) => {
+        dispatch({ type: 'LOGIN_SUCCESS', token: api.isAuthenticated() ? localStorage.getItem('pair_os_token') || '' : '', user: data.user });
+      })
+      .catch(() => {
+        api.logout();
+      })
+      .finally(() => setAutoLoginChecked(true));
+  }, [autoLoginChecked]);
 
   // Persist to LocalStorage (always, even with API)
   useEffect(() => {
@@ -440,6 +398,44 @@ export function useActionDispatch() {
         } catch { /* fallback to local */ }
       }
       dispatch({ type: 'UNBLOCK_ACTION', actionId });
+    },
+
+    async logAction(title: string, durationMinutes: number, result: 'completed' | 'partial' | 'abandoned', completionPercent?: number | null, note?: string, visibility: 'solo' | 'visible' | 'needs_verification' = 'solo') {
+      if (api.isAuthenticated()) {
+        try {
+          const action = await api.logAction(title, durationMinutes, result, completionPercent, note, visibility);
+          dispatch({ type: 'SYNC_ACTIONS', actions: [...state.actions, {
+            ...action,
+            startedAt: action.startedAt ? new Date(action.startedAt).getTime() : null,
+            endedAt: action.endedAt ? new Date(action.endedAt).getTime() : null,
+            lastAwayAt: action.lastAwayAt ? new Date(action.lastAwayAt).getTime() : null,
+            createdAt: new Date(action.createdAt).getTime(),
+            updatedAt: new Date(action.updatedAt).getTime(),
+          }] });
+          return;
+        } catch { /* fallback to local */ }
+      }
+      // Local fallback
+      const frontendResult = result === 'abandoned' ? 'failed' : result;
+      const newAction: ActionItem = {
+        id: generateId(), title, state: frontendResult as ActionItem['state'],
+        startedAt: now(), endedAt: now(),
+        totalDurationMs: durationMinutes * 60 * 1000, awayDurationMs: 0,
+        lastAwayAt: null, awayReason: null, blockedReason: null,
+        result: frontendResult, resultNote: note || '',
+        completionPercent: completionPercent || (result === 'completed' ? 100 : result === 'partial' ? 50 : null),
+        visibility, needsVerification: visibility === 'needs_verification',
+        evidenceUrl: null, evidenceText: null,
+        mainLine: state.profile?.mainLine || null, tags: [],
+        createdAt: now(), updatedAt: now(), userId: state.profile?.id || 'me',
+      };
+      const events: ActionEvent[] = [
+        ...state.events,
+        { id: generateId(), actionId: newAction.id, type: 'created', timestamp: now() },
+        { id: generateId(), actionId: newAction.id, type: 'ended', timestamp: now(), data: { result: frontendResult, logged: true } },
+      ];
+      dispatch({ type: 'SYNC_ACTIONS', actions: [...state.actions, newAction] });
+      dispatch({ type: 'INIT', state: { ...state, events } });
     },
 
     async endAction(actionId: string, result: 'completed' | 'partial' | 'abandoned', completionPercent?: number | null, note?: string) {

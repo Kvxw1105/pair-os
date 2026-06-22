@@ -99,6 +99,10 @@ class ApiClient {
     return data;
   }
 
+  async getMe() {
+    return this.request('/auth/me');
+  }
+
   logout() {
     this.clearToken();
   }
@@ -112,6 +116,13 @@ class ApiClient {
     return this.request('/actions', {
       method: 'POST',
       body: JSON.stringify({ title, visibility }),
+    });
+  }
+
+  async logAction(title: string, durationMinutes: number, result: string, completionPercent?: number | null, note?: string, visibility: string = 'solo') {
+    return this.request('/actions/log', {
+      method: 'POST',
+      body: JSON.stringify({ title, durationMinutes, result, completionPercent, note, visibility }),
     });
   }
 

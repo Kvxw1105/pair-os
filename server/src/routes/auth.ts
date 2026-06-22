@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { generateToken } from '../middleware/auth.js';
+import { authMiddleware, type AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -15,6 +16,15 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+});
+
+router.get('/me', authMiddleware as any, async (req: AuthRequest, res) => {
+  try {
+    res.json({ user: req.user });
+  } catch (err) {
+    console.error('Me error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 router.post('/register', async (req, res) => {
