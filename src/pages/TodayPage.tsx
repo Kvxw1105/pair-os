@@ -603,6 +603,51 @@ export function TodayPage() {
               >
                 在上面输入一句话，开始你的第一次行动。<br/>不需要完整计划，先做起来。
               </motion.p>
+
+              {/* Quick Start Examples — Onboarding */}
+              <motion.div
+                className="mt-6 flex flex-col items-center gap-2.5"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.5 }}
+              >
+                <p className="text-[11px] text-pair-textMuted/50 mb-1">或者选一个试试：</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <motion.button
+                    onClick={() => handleStart('先写5分钟')}
+                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ delay: 0.7, duration: 0.4 }}
+                    className="px-4 py-2.5 rounded-2xl text-sm font-medium bg-gradient-to-r from-pair-primary/10 to-pair-accent/5 border border-pair-primary/20 text-pair-primary hover:from-pair-primary/20 hover:to-pair-accent/10 backdrop-blur-sm transition-all duration-300 shadow-card hover:shadow-card-hover flex items-center gap-2"
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <span>✍️</span> 先写5分钟
+                  </motion.button>
+                  <motion.button
+                    onClick={() => handleStart('整理桌面')}
+                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ delay: 0.78, duration: 0.4 }}
+                    className="px-4 py-2.5 rounded-2xl text-sm font-medium bg-gradient-to-r from-pair-accent/10 to-pair-warn/5 border border-pair-accent/20 text-pair-accent hover:from-pair-accent/20 hover:to-pair-warn/10 backdrop-blur-sm transition-all duration-300 shadow-card hover:shadow-card-hover flex items-center gap-2"
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <span>🧹</span> 整理桌面
+                  </motion.button>
+                  <motion.button
+                    onClick={() => handleStart('阅读15分钟')}
+                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ delay: 0.86, duration: 0.4 }}
+                    className="px-4 py-2.5 rounded-2xl text-sm font-medium bg-gradient-to-r from-pair-stuck/10 to-pair-primary/5 border border-pair-stuck/20 text-pair-stuck hover:from-pair-stuck/20 hover:to-pair-primary/10 backdrop-blur-sm transition-all duration-300 shadow-card hover:shadow-card-hover flex items-center gap-2"
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <span>📖</span> 阅读15分钟
+                  </motion.button>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
