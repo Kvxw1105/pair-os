@@ -27,14 +27,19 @@ export function Layout() {
 
   return (
     <div className="min-h-[100dvh] bg-pair-bg flex flex-col">
-      <main className="flex-1 overflow-y-auto no-scrollbar pb-20">
+      {/* Skip to main content link for keyboard users */}
+      <a href="#main-content" className="skip-link">
+        跳到主内容
+      </a>
+
+      <main id="main-content" className="flex-1 overflow-y-auto no-scrollbar pb-20" tabIndex={-1}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.98, filter: 'blur(4px)' }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           >
             <Outlet />
           </motion.div>
@@ -42,7 +47,11 @@ export function Layout() {
       </main>
 
       {!hideNav && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom">
+        <nav
+          className="fixed bottom-0 left-0 right-0 z-50 safe-bottom"
+          role="navigation"
+          aria-label="主导航"
+        >
           <div className="max-w-lg mx-auto glass border-t border-pair-border/40 px-2 py-1.5">
             <div className="flex justify-around items-center">
               <NavItem to="/" icon={Home} label="今天" />
@@ -64,15 +73,36 @@ function NavItem({ to, icon: Icon, label }: { to: string; icon: typeof Home; lab
       to={to}
       end={to === '/'}
       className={({ isActive }) =>
-        `flex flex-col items-center gap-0.5 py-2 px-4 rounded-2xl transition-all duration-200 ${
+        `flex flex-col items-center gap-0.5 py-2 px-4 rounded-2xl transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pair-primary/20 ${
           isActive
             ? 'text-pair-primary bg-pair-primaryLight'
             : 'text-pair-textMuted hover:text-pair-textSecondary'
         }`
       }
+      aria-current={undefined}
     >
-      <Icon size={20} strokeWidth={2} />
-      <span className="text-[10px] font-medium">{label}</span>
+      {({ isActive }) => (
+        <motion.div
+          className="flex flex-col items-center gap-0.5"
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+        >
+          <motion.div
+            animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+          </motion.div>
+          <span className={`text-[10px] font-medium ${isActive ? 'font-semibold' : ''}`}>{label}</span>
+          {isActive && (
+            <motion.div
+              className="w-1 h-1 rounded-full bg-pair-primary mt-0.5"
+              layoutId="nav-indicator"
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            />
+          )}
+        </motion.div>
+      )}
     </NavLink>
   );
 }

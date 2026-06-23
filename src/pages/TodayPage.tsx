@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useAppDispatch, useActiveAction, useAwayAction, useTodayActions, useActionDispatch, useApi } from '../stores/AppStore';
-import { formatDuration, formatDateFull, getStateLabel, getStateColor } from '../utils/time';
+import { formatDuration, formatDateFull, getStateLabel } from '../utils/time';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DreamParticles } from '../components/DreamParticles';
-import { GlowingOrb, FloatingElement } from '../components/DreamEffects';
+import { GlowingOrb } from '../components/DreamEffects';
+import {
+  PageHeader, EmptyState, StatusBadge
+} from '../components/DesignSystem';
 import {
   Pause, RotateCcw, ChevronRight, Zap, Sparkles, User,
   Target, TrendingUp, Wind, Compass, Loader2, Flame, Clock, Wand2, ListChecks, ArrowRight, X
@@ -193,36 +196,22 @@ export function TodayPage() {
         animate="visible"
       >
         {/* Header */}
-        <motion.div variants={itemVariants} className="flex items-center justify-between mb-8">
-          <div>
-            <motion.h1
-              className="text-2xl font-bold text-pair-text tracking-tight"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
-            >
-              今天
-            </motion.h1>
-            <motion.p
-              className="text-xs text-pair-textMuted mt-1.5 tracking-wide"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.4 }}
-            >
-              {formatDateFull(Date.now())}
-            </motion.p>
-          </div>
-          {profile?.mainLine && (
-            <motion.span
-              className="text-[11px] px-3 py-1.5 bg-gradient-to-r from-pair-primaryLight/70 to-pair-accentLight/50 text-pair-primary rounded-full font-semibold border border-pair-primary/10 shadow-inner-glow backdrop-blur-sm"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
-            >
-              {profile.mainLine}
-            </motion.span>
-          )}
-        </motion.div>
+        <PageHeader
+          title="今天"
+          subtitle={formatDateFull(Date.now())}
+          action={
+            profile?.mainLine ? (
+              <motion.span
+                className="text-[11px] px-3 py-1.5 bg-gradient-to-r from-pair-primaryLight/70 to-pair-accentLight/50 text-pair-primary rounded-full font-semibold border border-pair-primary/10 shadow-inner-glow backdrop-blur-sm"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
+              >
+                {profile.mainLine}
+              </motion.span>
+            ) : undefined
+          }
+        />
 
         {/* Quick Start — 梦幻输入框 */}
         <motion.div variants={itemVariants} className="mb-8">
@@ -748,9 +737,16 @@ export function TodayPage() {
                         transition={{ type: 'spring', stiffness: 400 }}
                       />
                       <span className="text-sm text-pair-text flex-1 truncate group-hover/item:text-pair-primary transition-colors">{action.title}</span>
-                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold ${getStateColor(action.state)}`}>
+                      <StatusBadge variant={
+                        action.state === 'active' ? 'active' :
+                        action.state === 'away' ? 'away' :
+                        action.state === 'blocked' ? 'blocked' :
+                        action.state === 'completed' ? 'completed' :
+                        action.state === 'partial' ? 'partial' :
+                        'neutral'
+                      }>
                         {getStateLabel(action.state)}
-                      </span>
+                      </StatusBadge>
                     </motion.div>
                   ))}
                 </div>
@@ -762,81 +758,56 @@ export function TodayPage() {
         {/* Empty State — Dreamy */}
         <AnimatePresence>
           {!activeAction && !awayAction && todayActions.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              className="text-center py-20"
-            >
-              <FloatingElement duration={5}>
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-pair-surfaceAlt/90 to-pair-surface/80 flex items-center justify-center mx-auto mb-6 shadow-card border border-pair-border/30 backdrop-blur-sm relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-pair-primary/3 via-transparent to-pair-accent/3" />
-                  <Wind size={36} className="text-pair-textMuted/30 relative z-10" />
-                </div>
-              </FloatingElement>
-              <motion.p
-                className="text-sm text-pair-textSecondary/80 font-medium"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                今天还没有行动
-              </motion.p>
-              <motion.p
-                className="text-xs text-pair-textMuted/60 mt-2 leading-relaxed"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-              >
-                在上面输入一句话，开始你的第一次行动。<br/>不需要完整计划，先做起来。
-              </motion.p>
-
-              {/* Quick Start Examples — Onboarding */}
-              <motion.div
-                className="mt-6 flex flex-col items-center gap-2.5"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.5 }}
-              >
-                <p className="text-[11px] text-pair-textMuted/50 mb-1">或者选一个试试：</p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  <motion.button
-                    onClick={() => handleStart('先写5分钟')}
-                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ delay: 0.7, duration: 0.4 }}
-                    className="px-4 py-2.5 rounded-2xl text-sm font-medium bg-gradient-to-r from-pair-primary/10 to-pair-accent/5 border border-pair-primary/20 text-pair-primary hover:from-pair-primary/20 hover:to-pair-accent/10 backdrop-blur-sm transition-all duration-300 shadow-card hover:shadow-card-hover flex items-center gap-2"
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <span>✍️</span> 先写5分钟
-                  </motion.button>
-                  <motion.button
-                    onClick={() => handleStart('整理桌面')}
-                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ delay: 0.78, duration: 0.4 }}
-                    className="px-4 py-2.5 rounded-2xl text-sm font-medium bg-gradient-to-r from-pair-accent/10 to-pair-warn/5 border border-pair-accent/20 text-pair-accent hover:from-pair-accent/20 hover:to-pair-warn/10 backdrop-blur-sm transition-all duration-300 shadow-card hover:shadow-card-hover flex items-center gap-2"
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <span>🧹</span> 整理桌面
-                  </motion.button>
-                  <motion.button
-                    onClick={() => handleStart('阅读15分钟')}
-                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ delay: 0.86, duration: 0.4 }}
-                    className="px-4 py-2.5 rounded-2xl text-sm font-medium bg-gradient-to-r from-pair-stuck/10 to-pair-primary/5 border border-pair-stuck/20 text-pair-stuck hover:from-pair-stuck/20 hover:to-pair-primary/10 backdrop-blur-sm transition-all duration-300 shadow-card hover:shadow-card-hover flex items-center gap-2"
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <span>📖</span> 阅读15分钟
-                  </motion.button>
-                </div>
-              </motion.div>
-            </motion.div>
+            <EmptyState
+              icon={<Wind size={36} className="text-pair-textMuted/30" />}
+              title="今天还没有行动"
+              description="在上面输入一句话，开始你的第一次行动。不需要完整计划，先做起来。"
+              action={
+                <motion.div
+                  className="mt-4 flex flex-col items-center gap-2.5"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6, duration: 0.5 }}
+                >
+                  <p className="text-[11px] text-pair-textMuted/50 mb-1">或者选一个试试：</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <motion.button
+                      onClick={() => handleStart('先写5分钟')}
+                      initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ delay: 0.7, duration: 0.4 }}
+                      className="px-4 py-2.5 rounded-2xl text-sm font-medium bg-gradient-to-r from-pair-primary/10 to-pair-accent/5 border border-pair-primary/20 text-pair-primary hover:from-pair-primary/20 hover:to-pair-accent/10 backdrop-blur-sm transition-all duration-300 shadow-card hover:shadow-card-hover flex items-center gap-2"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <span>✍️</span> 先写5分钟
+                    </motion.button>
+                    <motion.button
+                      onClick={() => handleStart('整理桌面')}
+                      initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ delay: 0.78, duration: 0.4 }}
+                      className="px-4 py-2.5 rounded-2xl text-sm font-medium bg-gradient-to-r from-pair-accent/10 to-pair-warn/5 border border-pair-accent/20 text-pair-accent hover:from-pair-accent/20 hover:to-pair-warn/10 backdrop-blur-sm transition-all duration-300 shadow-card hover:shadow-card-hover flex items-center gap-2"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <span>🧹</span> 整理桌面
+                    </motion.button>
+                    <motion.button
+                      onClick={() => handleStart('阅读15分钟')}
+                      initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ delay: 0.86, duration: 0.4 }}
+                      className="px-4 py-2.5 rounded-2xl text-sm font-medium bg-gradient-to-r from-pair-stuck/10 to-pair-primary/5 border border-pair-stuck/20 text-pair-stuck hover:from-pair-stuck/20 hover:to-pair-primary/10 backdrop-blur-sm transition-all duration-300 shadow-card hover:shadow-card-hover flex items-center gap-2"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <span>📖</span> 阅读15分钟
+                    </motion.button>
+                  </div>
+                </motion.div>
+              }
+            />
           )}
         </AnimatePresence>
 

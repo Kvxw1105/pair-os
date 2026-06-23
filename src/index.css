@@ -637,3 +637,40 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Accessibility utilities */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus visible ring for keyboard navigation */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(184, 149, 106, 0.5), 0 0 0 4px rgba(184, 149, 106, 0.15);
+  border-radius: inherit;
+}
+
+/* Skip to main content link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-pair-primary);
+  color: white;
+  padding: 8px 16px;
+  z-index: 100;
+  transition: top 0.3s;
+  border-radius: 0 0 8px 0;
+  font-size: 14px;
+}
+.skip-link:focus {
+  top: 0;
+}
