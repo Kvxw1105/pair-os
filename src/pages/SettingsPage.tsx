@@ -76,9 +76,6 @@ export function SettingsPage() {
           apiKey: aiApiKey,
           model: aiModel,
         });
-        if (api.isAuthenticated()) {
-          await api.updateAiConfig({ enabled: false, baseUrl: '', apiKey: '', model: '' });
-        }
       } else {
         api.clearLocalAiConfig();
         await api.updateAiConfig({
@@ -91,7 +88,7 @@ export function SettingsPage() {
       setAiSaved(true);
       setTimeout(() => setAiSaved(false), 2000);
     } catch (err) {
-      alert((err as Error).message);
+      console.error('Save AI config error:', err);
     } finally {
       setAiLoading(false);
     }
