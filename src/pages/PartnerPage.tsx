@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useAppDispatch, useApi, usePartnerMessages } from '../stores/AppStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Heart, Shield, Target, User, ChevronRight, Copy, Check, Bomb, Moon, Send } from 'lucide-react';
+import { ArrowLeft, Heart, Shield, Target, User, ChevronRight, Copy, Check, Bomb, Moon, Send, LogIn } from 'lucide-react';
 
 export function PartnerPage() {
   const navigate = useNavigate();
@@ -210,15 +210,25 @@ export function PartnerPage() {
               </div>
               <h3 className="text-lg font-bold text-pair-text mb-2">还没有伙伴</h3>
               <p className="text-sm text-pair-textSecondary mb-6">邀请一个重要的人，一起推进目标</p>
-              <button
-                onClick={() => setShowInvite(true)}
-                className="px-6 py-3 bg-pair-primary text-white rounded-2xl font-semibold text-sm shadow-glow-primary hover:shadow-glow-primary transition-all duration-300"
-              >
-                发送邀请
-              </button>
+              {api.isAuthenticated() ? (
+                <button
+                  onClick={() => setShowInvite(true)}
+                  className="px-6 py-3 bg-pair-primary text-white rounded-2xl font-semibold text-sm shadow-glow-primary hover:shadow-glow-primary transition-all duration-300"
+                >
+                  发送邀请
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/auth')}
+                  className="px-6 py-3 bg-pair-primary text-white rounded-2xl font-semibold text-sm shadow-glow-primary hover:shadow-glow-primary transition-all duration-300 flex items-center gap-2 mx-auto"
+                >
+                  <LogIn size={16} />
+                  注册后邀请伙伴
+                </button>
+              )}
             </div>
 
-            {showInvite && (
+            {showInvite && api.isAuthenticated() && (
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
