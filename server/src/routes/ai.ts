@@ -5,8 +5,47 @@ import { authMiddleware, type AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
-// AI test connection doesn't require auth - user can test before signing in
-router.post('/test', async (req: AuthRequest, res) => {
+// Helper: get AI config from headers (local mode) - does NOT require auth
+function getLocalAiConfig(req: any): { enabled: boolean; baseUrl: string; apiKey: string; model: string } | null {
+  const headerKey = req.headers['x-ai-key'] as string | undefined;
+  const headerBaseUrl = req.headers['x-ai-baseurl'] as string | undefined;
+  const headerModel = req.headers['x-ai-model'] as string | undefined;
+
+  if (headerKey && headerBaseUrl && headerModel) {
+    return {
+      enabled: true,
+      baseUrl: headerBaseUrl.trim().replace(/\/$/, ''),
+      apiKey: headerKey,
+      model: headerModel.trim(),
+    };
+  }
+  return null;
+}
+
+// Helper: get AI config from headers or database (requires auth for cloud mode)
+async function getAiConfig(req: AuthRequest): Promise<{ enabled: boolean; baseUrl: string; apiKey: string; model: string } | null> {
+  // 1. Try local mode first (headers)
+  const local = getLocalAiConfig(req);
+  if (local) return local;
+
+  // 2. Fall back to cloud mode (database) - requires auth
+  if (!req.user) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    select: { aiConfig: true },
+  });
+
+  if (!user?.aiConfig) return null;
+  const config = JSON.parse(user.aiConfig);
+  if (!config.enabled || !config.apiKey || !config.baseUrl) return null;
+  return config;
+}
+
+// ========== Routes that DON'T require auth (local mode works without login) ==========
+
+// Test connection - no auth needed
+router.post('/test', async (req, res) => {
   try {
     const body = z.object({
       baseUrl: z.string().min(1),
@@ -56,112 +95,14 @@ router.post('/test', async (req: AuthRequest, res) => {
   }
 });
 
-router.use(authMiddleware as any);
-
-// Helper: get AI config from headers (local mode) or database (cloud mode)
-async function getAiConfig(req: AuthRequest): Promise<{ enabled: boolean; baseUrl: string; apiKey: string; model: string } | null> {
-  const headerKey = req.headers['x-ai-key'] as string | undefined;
-  const headerBaseUrl = req.headers['x-ai-baseurl'] as string | undefined;
-  const headerModel = req.headers['x-ai-model'] as string | undefined;
-
-  if (headerKey && headerBaseUrl && headerModel) {
-    return {
-      enabled: true,
-      baseUrl: headerBaseUrl.trim().replace(/\/$/, ''),
-      apiKey: headerKey,
-      model: headerModel.trim(),
-    };
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: req.user!.id },
-    select: { aiConfig: true },
-  });
-
-  if (!user?.aiConfig) return null;
-  const config = JSON.parse(user.aiConfig);
-  if (!config.enabled || !config.apiKey || !config.baseUrl) return null;
-  return config;
-}
-
-// Get AI config (for cloud mode - local mode returns empty)
-router.get('/config', async (req: AuthRequest, res) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: { aiConfig: true },
-    });
-    if (!user?.aiConfig) {
-      res.json({ enabled: false, baseUrl: '', apiKey: '', model: '' });
-      return;
-    }
-    const config = JSON.parse(user.aiConfig);
-    // Don't return full apiKey, only mask
-    res.json({
-      ...config,
-      apiKey: config.apiKey ? '***' + config.apiKey.slice(-4) : '',
-    });
-  } catch (err) {
-    console.error('Get AI config error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Update AI config
-const configSchema = z.object({
-  enabled: z.boolean().default(false),
-  baseUrl: z.string().min(1).max(500),
-  apiKey: z.string().min(1).max(500),
-  model: z.string().min(1).max(100),
-});
-
-router.put('/config', async (req: AuthRequest, res) => {
-  try {
-    const data = configSchema.parse(req.body);
-    const existing = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: { aiConfig: true },
-    });
-    
-    let apiKey = data.apiKey;
-    // If user sends masked key (***), keep existing
-    if (apiKey.startsWith('***') && existing?.aiConfig) {
-      const existingConfig = JSON.parse(existing.aiConfig);
-      apiKey = existingConfig.apiKey;
-    }
-
-    const config = JSON.stringify({
-      enabled: data.enabled,
-      baseUrl: data.baseUrl.trim().replace(/\/$/, ''),
-      apiKey,
-      model: data.model.trim(),
-    });
-
-    await prisma.user.update({
-      where: { id: req.user!.id },
-      data: { aiConfig: config },
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors[0].message });
-      return;
-    }
-    console.error('Update AI config error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Suggest when blocked
-// Process user input: normalize + generate steps
-router.post('/process', async (req: AuthRequest, res) => {
+// Process user input: normalize + generate steps - no auth needed for local mode
+router.post('/process', async (req, res) => {
   try {
     const { title } = z.object({ title: z.string().min(1).max(200) }).parse(req.body);
 
-    const config = await getAiConfig(req);
+    const config = getLocalAiConfig(req);
     if (!config) {
-      res.status(400).json({ error: 'AI not configured' });
+      res.status(400).json({ error: 'AI not configured. Please set up AI in Settings.' });
       return;
     }
 
@@ -238,103 +179,14 @@ router.post('/process', async (req: AuthRequest, res) => {
   }
 });
 
-router.post('/suggest', async (req: AuthRequest, res) => {
-  try {
-    const { reason, actionTitle, note } = z.object({
-      reason: z.string().min(1),
-      actionTitle: z.string().min(1),
-      note: z.string().optional(),
-    }).parse(req.body);
-
-    const config = await getAiConfig(req);
-    if (!config) {
-      res.status(400).json({ error: 'AI not configured' });
-      return;
-    }
-
-    // Fetch recent actions for context
-    const recentActions = await prisma.action.findMany({
-      where: { userId: req.user!.id },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      select: {
-        title: true,
-        state: true,
-        result: true,
-        blockedReason: true,
-        resultNote: true,
-        totalDurationMs: true,
-      },
-    });
-
-    const context = recentActions.map(a => 
-      `- "${a.title}" (${a.state}${a.result ? `, ${a.result}` : ''}${a.blockedReason ? `, blocked: ${a.blockedReason}` : ''})`
-    ).join('\n');
-
-    const systemPrompt = `你是一个极简的行动助手。用户正在做一个行动时遇到了阻力。
-
-你的角色：只给一个最具体、可执行的下一步。不要分析、不要鼓励、不给多个选项。
-
-用户的行动历史：
-${context}
-
-用户当前行动："${actionTitle}"
-卡住原因：${reason}
-${note ? `补充说明：${note}` : ''}
-
-规则：
-1. 只输出一个具体动作（如"先运行项目，复制第一条报错"）
-2. 不要解释为什么
-3. 不要给多个选择
-4. 如果用户说"不知道下一步"，给一个极小的试探动作
-5. 如果用户说"任务太大"，给"只做当前能推进的最小步骤"`;
-
-    const url = `${config.baseUrl}/chat/completions`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: '请给我一个下一步。' },
-        ],
-        temperature: 0.7,
-        max_tokens: 100,
-      }),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      res.status(400).json({ error: `AI request failed: ${text.slice(0, 200)}` });
-      return;
-    }
-
-    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
-    const suggestion = data.choices?.[0]?.message?.content?.trim() || '先尝试运行一下，看看会发生什么。';
-
-    res.json({ suggestion });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors[0].message });
-      return;
-    }
-    console.error('AI suggest error:', err);
-    res.status(500).json({ error: 'AI request failed' });
-  }
-});
-
-// Refine action title into steps
-router.post('/refine', async (req: AuthRequest, res) => {
+// Refine action title into steps - no auth needed for local mode
+router.post('/refine', async (req, res) => {
   try {
     const { title } = z.object({ title: z.string().min(1).max(200) }).parse(req.body);
 
-    const config = await getAiConfig(req);
+    const config = getLocalAiConfig(req);
     if (!config) {
-      res.status(400).json({ error: 'AI not configured' });
+      res.status(400).json({ error: 'AI not configured. Please set up AI in Settings.' });
       return;
     }
 
@@ -388,33 +240,131 @@ router.post('/refine', async (req: AuthRequest, res) => {
   }
 });
 
-// Timeline insight - analyze weekly patterns
-router.post('/insight', async (req: AuthRequest, res) => {
+// Suggest when blocked - no auth needed for local mode (history is empty if not authenticated)
+router.post('/suggest', async (req, res) => {
   try {
-    const config = await getAiConfig(req);
+    const { reason, actionTitle, note } = z.object({
+      reason: z.string().min(1),
+      actionTitle: z.string().min(1),
+      note: z.string().optional(),
+    }).parse(req.body);
+
+    const config = getLocalAiConfig(req);
     if (!config) {
-      res.status(400).json({ error: 'AI not configured' });
+      res.status(400).json({ error: 'AI not configured. Please set up AI in Settings.' });
       return;
     }
 
-    // Last 7 days of actions
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const actions = await prisma.action.findMany({
-      where: {
-        userId: req.user!.id,
-        createdAt: { gte: sevenDaysAgo },
+    // Fetch recent actions only if authenticated
+    let context = '';
+    const authReq = req as AuthRequest;
+    if (authReq.user) {
+      try {
+        const recentActions = await prisma.action.findMany({
+          where: { userId: authReq.user.id },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            title: true,
+            state: true,
+            result: true,
+            blockedReason: true,
+            resultNote: true,
+            totalDurationMs: true,
+          },
+        });
+        context = recentActions.map(a =>
+          `- "${a.title}" (${a.state}${a.result ? `, ${a.result}` : ''}${a.blockedReason ? `, blocked: ${a.blockedReason}` : ''})`
+        ).join('\n');
+      } catch { /* ignore db errors */ }
+    }
+
+    const systemPrompt = `你是一个极简的行动助手。用户正在做一个行动时遇到了阻力。
+
+你的角色：只给一个最具体、可执行的下一步。不要分析、不要鼓励、不给多个选项。
+
+${context ? `用户的行动历史：\n${context}\n\n` : ''}用户当前行动："${actionTitle}"
+卡住原因：${reason}
+${note ? `补充说明：${note}` : ''}
+
+规则：
+1. 只输出一个具体动作（如"先运行项目，复制第一条报错"）
+2. 不要解释为什么
+3. 不要给多个选择
+4. 如果用户说"不知道下一步"，给一个极小的试探动作
+5. 如果用户说"任务太大"，给"只做当前能推进的最小步骤"`;
+
+    const url = `${config.baseUrl}/chat/completions`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
       },
-      orderBy: { createdAt: 'asc' },
-      select: {
-        title: true,
-        state: true,
-        result: true,
-        blockedReason: true,
-        awayReason: true,
-        totalDurationMs: true,
-        createdAt: true,
-      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: '请给我一个下一步。' },
+        ],
+        temperature: 0.7,
+        max_tokens: 100,
+      }),
     });
+
+    if (!response.ok) {
+      const text = await response.text();
+      res.status(400).json({ error: `AI request failed: ${text.slice(0, 200)}` });
+      return;
+    }
+
+    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
+    const suggestion = data.choices?.[0]?.message?.content?.trim() || '先尝试运行一下，看看会发生什么。';
+
+    res.json({ suggestion });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0].message });
+      return;
+    }
+    console.error('AI suggest error:', err);
+    res.status(500).json({ error: 'AI request failed' });
+  }
+});
+
+// Timeline insight - analyze weekly patterns - no auth needed for local mode
+router.post('/insight', async (req, res) => {
+  try {
+    const config = getLocalAiConfig(req);
+    if (!config) {
+      res.status(400).json({ error: 'AI not configured. Please set up AI in Settings.' });
+      return;
+    }
+
+    // Fetch actions only if authenticated
+    let actions: any[] = [];
+    const authReq = req as AuthRequest;
+    if (authReq.user) {
+      try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        actions = await prisma.action.findMany({
+          where: {
+            userId: authReq.user.id,
+            createdAt: { gte: sevenDaysAgo },
+          },
+          orderBy: { createdAt: 'asc' },
+          select: {
+            title: true,
+            state: true,
+            result: true,
+            blockedReason: true,
+            awayReason: true,
+            totalDurationMs: true,
+            createdAt: true,
+          },
+        });
+      } catch { /* ignore db errors */ }
+    }
 
     if (actions.length === 0) {
       res.json({ insight: '还没有足够的行动数据，先开始几个行动吧。' });
@@ -428,32 +378,32 @@ router.post('/insight', async (req: AuthRequest, res) => {
     const abandoned = actions.filter(a => a.result === 'abandoned').length;
     const blockedCount = actions.filter(a => a.blockedReason).length;
     const awayCount = actions.filter(a => a.awayReason).length;
-    const avgDuration = actions.reduce((s, a) => s + a.totalDurationMs, 0) / total;
+    const avgDuration = actions.reduce((s: number, a: any) => s + a.totalDurationMs, 0) / total;
 
     const blockedReasons = actions
-      .filter(a => a.blockedReason)
-      .map(a => a.blockedReason)
-      .reduce((acc, r) => { acc[r!] = (acc[r!] || 0) + 1; return acc; }, {} as Record<string, number>);
+      .filter((a: any) => a.blockedReason)
+      .map((a: any) => a.blockedReason)
+      .reduce((acc: Record<string, number>, r: string) => { acc[r] = (acc[r] || 0) + 1; return acc; }, {} as Record<string, number>);
     const topBlockedReason = Object.entries(blockedReasons)
       .sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 
     const awayReasons = actions
-      .filter(a => a.awayReason)
-      .map(a => a.awayReason)
-      .reduce((acc, r) => { acc[r!] = (acc[r!] || 0) + 1; return acc; }, {} as Record<string, number>);
+      .filter((a: any) => a.awayReason)
+      .map((a: any) => a.awayReason)
+      .reduce((acc: Record<string, number>, r: string) => { acc[r] = (acc[r] || 0) + 1; return acc; }, {} as Record<string, number>);
     const topAwayReason = Object.entries(awayReasons)
       .sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 
     // Hourly distribution
     const hourCounts: Record<number, number> = {};
-    actions.forEach(a => {
+    actions.forEach((a: any) => {
       const h = new Date(a.createdAt).getHours();
       hourCounts[h] = (hourCounts[h] || 0) + 1;
     });
     const peakHour = Object.entries(hourCounts)
       .sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 
-    const actionList = actions.map(a =>
+    const actionList = actions.map((a: any) =>
       `- "${a.title}" (${a.state}, ${Math.round(a.totalDurationMs / 60000)}min${a.blockedReason ? `, blocked:${a.blockedReason}` : ''}${a.awayReason ? `, away:${a.awayReason}` : ''})`
     ).join('\n');
 
@@ -508,6 +458,79 @@ ${actionList}`;
   } catch (err) {
     console.error('AI insight error:', err);
     res.status(500).json({ error: 'AI request failed' });
+  }
+});
+
+// ========== Routes that DO require auth (cloud mode config storage) ==========
+
+router.use(authMiddleware as any);
+
+// Get AI config (for cloud mode - local mode returns empty)
+router.get('/config', async (req: AuthRequest, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { aiConfig: true },
+    });
+    if (!user?.aiConfig) {
+      res.json({ enabled: false, baseUrl: '', apiKey: '', model: '' });
+      return;
+    }
+    const config = JSON.parse(user.aiConfig);
+    // Don't return full apiKey, only mask
+    res.json({
+      ...config,
+      apiKey: config.apiKey ? '***' + config.apiKey.slice(-4) : '',
+    });
+  } catch (err) {
+    console.error('Get AI config error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update AI config
+const configSchema = z.object({
+  enabled: z.boolean().default(false),
+  baseUrl: z.string().min(1).max(500),
+  apiKey: z.string().min(1).max(500),
+  model: z.string().min(1).max(100),
+});
+
+router.put('/config', async (req: AuthRequest, res) => {
+  try {
+    const data = configSchema.parse(req.body);
+    const existing = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { aiConfig: true },
+    });
+    
+    let apiKey = data.apiKey;
+    // If user sends masked key (***), keep existing
+    if (apiKey.startsWith('***') && existing?.aiConfig) {
+      const existingConfig = JSON.parse(existing.aiConfig);
+      apiKey = existingConfig.apiKey;
+    }
+
+    const config = JSON.stringify({
+      enabled: data.enabled,
+      baseUrl: data.baseUrl.trim().replace(/\/$/, ''),
+      apiKey,
+      model: data.model.trim(),
+    });
+
+    await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { aiConfig: config },
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0].message });
+      return;
+    }
+    console.error('Update AI config error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

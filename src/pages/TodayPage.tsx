@@ -92,6 +92,7 @@ export function TodayPage() {
     }
     setAiProcessing(true);
     setShowAiPanel(true);
+    setAiProcessResult(null);
     try {
       const result = await api.processAction(inputValue.trim());
       setAiProcessResult({
@@ -100,9 +101,11 @@ export function TodayPage() {
       });
     } catch (err) {
       console.error('AI process failed:', err);
-      // Fallback: just start with original input
-      await handleStart(inputValue);
-      setShowAiPanel(false);
+      // Show error in panel, don't auto-start
+      setAiProcessResult({
+        normalized: inputValue.trim(),
+        steps: [],
+      });
     } finally {
       setAiProcessing(false);
     }
