@@ -24,8 +24,16 @@ export function PartnerPage() {
 
   const handleCopyLink = async () => {
     try {
-      const res = await api.getInviteLink();
-      const inviteCode = res.inviteCode;
+      let inviteCode: string;
+      if (api.isAuthenticated()) {
+        const res = await api.getInviteLink();
+        inviteCode = res.inviteCode;
+      } else if (state.profile?.id) {
+        // Not logged in: use profile id as invite code
+        inviteCode = state.profile.id;
+      } else {
+        throw new Error('No profile');
+      }
       const inviteLink = `${window.location.origin}/#/auth?invite=${inviteCode}`;
       await navigator.clipboard.writeText(inviteLink);
       setCopied(true);
@@ -219,7 +227,7 @@ export function PartnerPage() {
                 <p className="text-sm text-pair-textSecondary mb-3">复制邀请链接发送给对方：</p>
                 <div className="flex gap-2">
                   <div className="flex-1 px-4 py-3 bg-pair-surfaceAlt/60 rounded-xl text-xs text-pair-textMuted truncate border border-pair-border/40">
-                    https://pairos.app/invite/{state.profile?.id || 'demo'}
+                    {window.location.origin}/#/auth?invite={state.profile?.id || 'demo'}
                   </div>
                   <button
                     onClick={handleCopyLink}
