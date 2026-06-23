@@ -81,6 +81,7 @@ export interface UserProfile {
   name: string;
   email?: string;
   avatar: string | null;
+  bio: string | null;
   timezone: string;
   createdAt: number;
   onboardingCompleted: boolean;
@@ -101,6 +102,7 @@ export interface Partner {
   id: string;
   name: string;
   avatar: string | null;
+  bio: string | null;
   status: 'idle' | 'active' | 'away' | 'blocked';
   currentActionTitle: string | null;
   lastActiveAt: number;
@@ -180,7 +182,7 @@ export type AppAction =
   | { type: 'SET_PROFILE'; profile: UserProfile }
   | { type: 'UPDATE_PROFILE'; updates: Partial<UserProfile> }
   | { type: 'COMPLETE_ONBOARDING'; mainLine: string; deadline: string | null; subLines: string[] }
-  | { type: 'LOGIN_SUCCESS'; token: string; user: { id: string; name: string; email: string } }
+  | { type: 'LOGIN_SUCCESS'; token: string; user: { id: string; name: string; email: string; avatar?: string | null; bio?: string | null } }
   | { type: 'LOGOUT' }
   | { type: 'SYNC_ACTIONS'; actions: ActionItem[] }
   | { type: 'SYNC_PARTNER'; partner: Partner }

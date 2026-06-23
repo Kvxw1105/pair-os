@@ -108,6 +108,13 @@ class ApiClient {
     return data;
   }
 
+  async updateProfile(updates: { name?: string; avatar?: string | null; bio?: string | null }) {
+    return this.request('/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
   async getMe() {
     return this.request('/auth/me');
   }

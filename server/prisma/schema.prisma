@@ -13,6 +13,7 @@ model User {
   passwordHash  String    @map("password_hash")
   name          String
   avatar        String?
+  bio           String?   @map("bio") // Personal signature
   timezone      String    @default("Asia/Shanghai")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")

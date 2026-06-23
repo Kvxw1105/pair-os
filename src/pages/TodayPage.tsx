@@ -210,16 +210,30 @@ export function TodayPage() {
           title="今天"
           subtitle={formatDateFull(Date.now())}
           action={
-            profile?.mainLine ? (
-              <motion.span
-                className="text-[11px] px-3 py-1.5 bg-gradient-to-r from-pair-primaryLight/70 to-pair-accentLight/50 text-pair-primary rounded-full font-semibold border border-pair-primary/10 shadow-inner-glow backdrop-blur-sm"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
+            <div className="flex items-center gap-2">
+              {profile?.mainLine && (
+                <motion.span
+                  className="text-[11px] px-3 py-1.5 bg-gradient-to-r from-pair-primaryLight/70 to-pair-accentLight/50 text-pair-primary rounded-full font-semibold border border-pair-primary/10 shadow-inner-glow backdrop-blur-sm"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
+                >
+                  {profile.mainLine}
+                </motion.span>
+              )}
+              <motion.button
+                onClick={() => navigate('/profile')}
+                className="w-9 h-9 rounded-full bg-gradient-to-br from-pair-primary/20 to-pair-accent/15 flex items-center justify-center border border-pair-primary/10 hover:shadow-glow-primary transition-all"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
               >
-                {profile.mainLine}
-              </motion.span>
-            ) : undefined
+                {profile?.avatar ? (
+                  <img src={profile.avatar} alt={profile.name} className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  <User size={16} className="text-pair-primary" />
+                )}
+              </motion.button>
+            </div>
           }
         />
 

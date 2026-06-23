@@ -126,4 +126,35 @@ router.post('/guest', async (req, res) => {
   }
 });
 
+// Update user profile (name, avatar, bio)
+router.put('/me', authMiddleware as any, async (req: AuthRequest, res) => {
+  try {
+    const { name, avatar, bio } = z.object({
+      name: z.string().min(1).max(50).optional(),
+      avatar: z.string().url().max(2000).nullable().optional(),
+      bio: z.string().max(200).nullable().optional(),
+    }).parse(req.body);
+
+    const updateData: { name?: string; avatar?: string | null; bio?: string | null } = {};
+    if (name !== undefined) updateData.name = name;
+    if (avatar !== undefined) updateData.avatar = avatar;
+    if (bio !== undefined) updateData.bio = bio;
+
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: updateData,
+      select: { id: true, email: true, name: true, avatar: true, bio: true },
+    });
+
+    res.json({ user });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0].message });
+      return;
+    }
+    console.error('Update profile error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

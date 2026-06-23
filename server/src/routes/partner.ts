@@ -21,8 +21,8 @@ router.get('/status', async (req: AuthRequest, res) => {
         ],
       },
       include: {
-        user: { select: { id: true, name: true, email: true } },
-        partner: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, avatar: true, bio: true } },
+        partner: { select: { id: true, name: true, email: true, avatar: true, bio: true } },
       },
     });
 
@@ -44,6 +44,8 @@ router.get('/status', async (req: AuthRequest, res) => {
       partner: {
         id: partner.id,
         name: partner.name,
+        avatar: partner.avatar,
+        bio: partner.bio,
         status: activeAction ? 'active' : 'idle',
         currentActionTitle: activeAction?.title || null,
         lastActiveAt: activeAction?.startedAt?.getTime() || null,
