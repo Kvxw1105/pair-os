@@ -154,6 +154,90 @@ router.put('/config', async (req: AuthRequest, res) => {
 });
 
 // Suggest when blocked
+// Process user input: normalize + generate steps
+router.post('/process', async (req: AuthRequest, res) => {
+  try {
+    const { title } = z.object({ title: z.string().min(1).max(200) }).parse(req.body);
+
+    const config = await getAiConfig(req);
+    if (!config) {
+      res.status(400).json({ error: 'AI not configured' });
+      return;
+    }
+
+    const url = `${config.baseUrl}/chat/completions`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          {
+            role: 'system',
+            content: `你是一个行动助手。用户输入了一个模糊的行动描述，你需要做两件事：
+
+1. 规范化：把模糊描述变成清晰、可衡量的目标（一句话，20-40字）。
+2. 拆解：把这个目标拆成 3-4 个具体的、可立即执行的步骤，每个步骤10-30分钟内可完成。
+
+输出必须是纯 JSON，不要有 markdown 代码块或其他解释：
+{
+  "normalized": "规范化后的目标",
+  "steps": ["步骤1", "步骤2", "步骤3", "步骤4"]
+}
+
+规则：
+- 如果用户输入已经够清晰，normalized 可以基本不变，只去掉语气词
+- 步骤必须具体，不能笼统（如"开始做"不行，应该是"打开IDE，运行项目看报错"）
+- 步骤要按执行顺序排列
+- 不要输出 JSON 以外的任何文字`,
+          },
+          { role: 'user', content: title },
+        ],
+        temperature: 0.7,
+        max_tokens: 300,
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      res.status(400).json({ error: `AI request failed: ${text.slice(0, 200)}` });
+      return;
+    }
+
+    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
+    const raw = data.choices?.[0]?.message?.content?.trim() || '';
+
+    let result: { normalized: string; steps: string[] } = { normalized: title, steps: [] };
+    try {
+      const parsed = JSON.parse(raw);
+      result.normalized = parsed.normalized || title;
+      result.steps = Array.isArray(parsed.steps) ? parsed.steps.filter((s: string) => s.trim()) : [];
+    } catch {
+      // Fallback: try to extract JSON from markdown code block
+      const jsonMatch = raw.match(/```json\s*([\s\S]*?)```|```\s*([\s\S]*?)```|\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1] || jsonMatch[2] || jsonMatch[0]);
+          result.normalized = parsed.normalized || title;
+          result.steps = Array.isArray(parsed.steps) ? parsed.steps.filter((s: string) => s.trim()) : [];
+        } catch { /* keep fallback */ }
+      }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0].message });
+      return;
+    }
+    console.error('AI process error:', err);
+    res.status(500).json({ error: 'AI request failed' });
+  }
+});
+
 router.post('/suggest', async (req: AuthRequest, res) => {
   try {
     const { reason, actionTitle, note } = z.object({

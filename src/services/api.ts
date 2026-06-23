@@ -184,6 +184,13 @@ class ApiClient {
     });
   }
 
+  async processAction(title: string) {
+    return this.request('/ai/process', {
+      method: 'POST',
+      body: JSON.stringify({ title }),
+    });
+  }
+
   async refineAction(title: string) {
     return this.request('/ai/refine', {
       method: 'POST',

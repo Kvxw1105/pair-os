@@ -7,7 +7,7 @@ import { DreamParticles } from '../components/DreamParticles';
 import { GlowingOrb, FloatingElement } from '../components/DreamEffects';
 import {
   Pause, RotateCcw, ChevronRight, Zap, Sparkles, User,
-  Target, TrendingUp, Wind, Compass, Loader2, Flame, Clock
+  Target, TrendingUp, Wind, Compass, Loader2, Flame, Clock, Wand2, ListChecks, ArrowRight, X
 } from 'lucide-react';
 
 const containerVariants = {
@@ -47,6 +47,10 @@ export function TodayPage() {
   const [logResult, setLogResult] = useState<'completed' | 'partial' | 'abandoned'>('completed');
   const [logNote, setLogNote] = useState('');
   const [logLoading, setLogLoading] = useState(false);
+  // AI Smart Input
+  const [aiProcessResult, setAiProcessResult] = useState<{ normalized: string; steps: string[] } | null>(null);
+  const [aiProcessing, setAiProcessing] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
 
   const profile = state.profile;
 
@@ -72,6 +76,45 @@ export function TodayPage() {
     setInputValue('');
     setShowSuggestions(false);
     setRefinedSteps(null);
+    setAiProcessResult(null);
+    setShowAiPanel(false);
+  };
+
+  const handleSmartStart = async () => {
+    if (!inputValue.trim()) return;
+    // Check if AI is configured (local or cloud)
+    const hasLocal = api.isLocalAiMode() && api.getLocalAiConfig()?.enabled;
+    const hasCloud = api.isAuthenticated();
+    if (!hasLocal && !hasCloud) {
+      // No AI, just start directly
+      await handleStart(inputValue);
+      return;
+    }
+    setAiProcessing(true);
+    setShowAiPanel(true);
+    try {
+      const result = await api.processAction(inputValue.trim());
+      setAiProcessResult({
+        normalized: result.normalized || inputValue.trim(),
+        steps: result.steps || [],
+      });
+    } catch (err) {
+      console.error('AI process failed:', err);
+      // Fallback: just start with original input
+      await handleStart(inputValue);
+      setShowAiPanel(false);
+    } finally {
+      setAiProcessing(false);
+    }
+  };
+
+  const handleSelectOption = async (title: string) => {
+    await handleStart(title);
+  };
+
+  const handleCloseAiPanel = () => {
+    setShowAiPanel(false);
+    setAiProcessResult(null);
   };
 
   const handleRefine = async () => {
@@ -198,7 +241,7 @@ export function TodayPage() {
               type="text"
               value={inputValue}
               onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleStart(inputValue)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSmartStart()}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               placeholder="说一句话，开始行动..."
@@ -206,16 +249,132 @@ export function TodayPage() {
             />
 
             <motion.button
-              onClick={() => handleStart(inputValue)}
-              disabled={!inputValue.trim()}
+              onClick={() => handleSmartStart()}
+              disabled={!inputValue.trim() || aiProcessing}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-3.5 rounded-2xl bg-gradient-to-br from-pair-primary to-pair-primaryMuted text-white shadow-glow-primary transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none"
               whileHover={inputValue.trim() ? { scale: 1.05, boxShadow: '0 0 30px rgba(27,61,46,0.2)' } : {}}
               whileTap={inputValue.trim() ? { scale: 0.92 } : {}}
               transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
-              <Zap size={18} strokeWidth={2.5} />
+              {aiProcessing ? (
+                <Loader2 size={18} strokeWidth={2.5} className="animate-spin" />
+              ) : (
+                <Zap size={18} strokeWidth={2.5} />
+              )}
             </motion.button>
           </div>
+
+          {/* AI Smart Input Panel */}
+          <AnimatePresence>
+            {showAiPanel && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                exit={{ opacity: 0, y: -10, height: 0 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
+                className="mt-4 overflow-hidden"
+              >
+                {aiProcessing ? (
+                  <div className="bg-pair-surface/90 backdrop-blur rounded-3xl p-5 border border-pair-border/50 shadow-card">
+                    <div className="flex items-center gap-3">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                      >
+                        <Sparkles size={18} className="text-pair-primary" />
+                      </motion.div>
+                      <span className="text-sm text-pair-textSecondary">AI 正在分析你的行动...</span>
+                    </div>
+                  </div>
+                ) : aiProcessResult ? (
+                  <div className="bg-pair-surface/90 backdrop-blur rounded-3xl border border-pair-border/50 shadow-card overflow-hidden">
+                    <div className="p-5 space-y-4">
+                      {/* Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Wand2 size={14} className="text-pair-primary" />
+                          <span className="text-xs font-semibold text-pair-primary tracking-wide">AI 建议</span>
+                        </div>
+                        <button onClick={handleCloseAiPanel} className="p-1.5 rounded-lg hover:bg-pair-surfaceAlt transition-colors">
+                          <X size={14} className="text-pair-textMuted" />
+                        </button>
+                      </div>
+
+                      {/* Original */}
+                      <div className="bg-pair-surfaceAlt/40 rounded-2xl p-3.5 border border-pair-border/30">
+                        <p className="text-[10px] text-pair-textMuted/60 mb-1">你的输入</p>
+                        <p className="text-sm text-pair-textSecondary">「{inputValue}」</p>
+                      </div>
+
+                      {/* Normalized option */}
+                      {aiProcessResult.normalized && aiProcessResult.normalized !== inputValue.trim() && (
+                        <motion.button
+                          onClick={() => handleSelectOption(aiProcessResult.normalized)}
+                          className="w-full text-left bg-gradient-to-br from-pair-primary/5 to-pair-accent/5 rounded-2xl p-4 border border-pair-primary/15 hover:border-pair-primary/30 transition-all group"
+                          whileHover={{ x: 3, scale: 1.01 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <Wand2 size={13} className="text-pair-primary" />
+                            <span className="text-[11px] font-semibold text-pair-primary">AI 整理</span>
+                            <span className="text-[10px] text-pair-textMuted/60 ml-auto">推荐</span>
+                          </div>
+                          <p className="text-sm font-semibold text-pair-text">{aiProcessResult.normalized}</p>
+                          <div className="flex items-center gap-1 mt-2 text-[11px] text-pair-primary/70">
+                            <span>用这个目标开始</span>
+                            <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </motion.button>
+                      )}
+
+                      {/* Direct start option */}
+                      <motion.button
+                        onClick={() => handleSelectOption(inputValue)}
+                        className="w-full text-left bg-pair-surfaceAlt/40 rounded-2xl p-4 border border-pair-border/30 hover:border-pair-border/50 transition-all"
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Zap size={13} className="text-pair-textMuted" />
+                          <span className="text-[11px] font-semibold text-pair-textMuted">直接开始</span>
+                        </div>
+                        <p className="text-sm text-pair-textSecondary">{inputValue}</p>
+                      </motion.button>
+
+                      {/* Steps */}
+                      {aiProcessResult.steps && aiProcessResult.steps.length > 0 && (
+                        <div className="bg-pair-surfaceAlt/40 rounded-2xl p-4 border border-pair-border/30">
+                          <div className="flex items-center gap-2 mb-3">
+                            <ListChecks size={13} className="text-pair-accent" />
+                            <span className="text-[11px] font-semibold text-pair-accent">拆解步骤</span>
+                            <span className="text-[10px] text-pair-textMuted/60">选一个直接开始</span>
+                          </div>
+                          <div className="space-y-2">
+                            {aiProcessResult.steps.map((step, i) => (
+                              <motion.button
+                                key={i}
+                                onClick={() => handleSelectOption(step)}
+                                className="w-full text-left px-3 py-2.5 rounded-xl bg-pair-surface/60 border border-pair-border/20 hover:border-pair-accent/30 hover:bg-pair-accent/5 transition-all text-sm text-pair-textSecondary hover:text-pair-text flex items-center gap-2 group"
+                                whileHover={{ x: 3 }}
+                                whileTap={{ scale: 0.98 }}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.08 }}
+                              >
+                                <span className="w-5 h-5 rounded-full bg-pair-accent/10 text-pair-accent text-[10px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                                <span className="flex-1">{step}</span>
+                                <ArrowRight size={12} className="text-pair-textMuted/40 group-hover:text-pair-accent/70 group-hover:translate-x-1 transition-all opacity-0 group-hover:opacity-100" />
+                              </motion.button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Log Action Button */}
           <motion.button
