@@ -240,31 +240,57 @@ export function TodayPage() {
             />
             <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-pair-primary/5 via-pair-accent/3 to-pair-stuck/5 opacity-0 group-focus-within:opacity-100 transition-all duration-500 blur-xl scale-[1.03]" />
 
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSmartStart()}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              placeholder="说一句话，开始行动..."
-              className="relative w-full px-5 py-5 pr-16 bg-pair-surface/90 backdrop-blur-md rounded-3xl border border-pair-border/40 focus:border-pair-accent/40 focus:outline-none focus:ring-2 focus:ring-pair-accent/10 text-sm shadow-card transition-all duration-500 placeholder:text-pair-textMuted/50 hover:shadow-card-hover"
-            />
-
-            <motion.button
-              onClick={() => handleSmartStart()}
-              disabled={!inputValue.trim() || aiProcessing}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-3.5 rounded-2xl bg-gradient-to-br from-pair-primary to-pair-primaryMuted text-white shadow-glow-primary transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none"
-              whileHover={inputValue.trim() ? { scale: 1.05, boxShadow: '0 0 30px rgba(27,61,46,0.2)' } : {}}
-              whileTap={inputValue.trim() ? { scale: 0.92 } : {}}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            <form
+              onSubmit={(e) => { e.preventDefault(); handleSmartStart(); }}
+              className="relative group"
             >
-              {aiProcessing ? (
-                <Loader2 size={18} strokeWidth={2.5} className="animate-spin" />
-              ) : (
-                <Zap size={18} strokeWidth={2.5} />
-              )}
-            </motion.button>
+              {/* Animated glow ring */}
+              <motion.div
+                className="absolute inset-0 rounded-3xl blur-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-700"
+                style={{
+                  background: isFocused
+                    ? 'linear-gradient(135deg, rgba(184,149,106,0.15), rgba(27,61,46,0.1), rgba(123,109,181,0.12))'
+                    : 'transparent',
+                }}
+                animate={isFocused ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-pair-primary/5 via-pair-accent/3 to-pair-stuck/5 opacity-0 group-focus-within:opacity-100 transition-all duration-500 blur-xl scale-[1.03]" />
+
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => handleInputChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSmartStart()}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                placeholder="说一句话，开始行动..."
+                enterKeyHint="go"
+                className="relative w-full px-5 py-5 pr-20 bg-pair-surface/90 backdrop-blur-md rounded-3xl border border-pair-border/40 focus:border-pair-accent/40 focus:outline-none focus:ring-2 focus:ring-pair-accent/10 text-sm shadow-card transition-all duration-500 placeholder:text-pair-textMuted/50 hover:shadow-card-hover"
+              />
+
+              <motion.button
+                type="submit"
+                disabled={!inputValue.trim() || aiProcessing}
+                className="absolute right-2 top-1/2 -translate-y-1/2 py-2.5 px-4 rounded-2xl bg-gradient-to-br from-pair-primary to-pair-primaryMuted text-white shadow-glow-primary transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-1.5"
+                whileHover={inputValue.trim() ? { scale: 1.05, boxShadow: '0 0 30px rgba(27,61,46,0.2)' } : {}}
+                whileTap={inputValue.trim() ? { scale: 0.92 } : {}}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              >
+                {aiProcessing ? (
+                  <Loader2 size={16} strokeWidth={2.5} className="animate-spin" />
+                ) : (
+                  <>
+                    <Sparkles size={16} strokeWidth={2.5} />
+                    <span className="text-xs font-medium hidden sm:inline">AI</span>
+                  </>
+                )}
+              </motion.button>
+            </form>
+
+            <p className="mt-2 text-[10px] text-pair-textMuted/50 text-center">
+              {inputValue.trim() ? '回车或点击 AI 按钮分析' : '输入一个行动目标，AI 帮你整理'}
+            </p>
           </div>
 
           {/* AI Smart Input Panel */}
