@@ -32,28 +32,30 @@ export function Layout() {
         跳到主内容
       </a>
 
-      <main id="main-content" className="flex-1 overflow-y-auto no-scrollbar pb-20" tabIndex={-1}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 12, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.98, filter: 'blur(4px)' }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+      <main id="main-content" className="flex-1 overflow-y-auto no-scrollbar pb-20 lg:pb-0" tabIndex={-1}>
+        <div className="max-w-lg mx-auto lg:max-w-7xl lg:px-8 xl:max-w-8xl">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -12, scale: 0.98, filter: 'blur(4px)' }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </main>
 
       {!hideNav && (
         <nav
-          className="fixed bottom-0 left-0 right-0 z-50 safe-bottom"
+          className="fixed bottom-0 left-0 right-0 z-50 safe-bottom lg:static lg:order-first lg:border-b lg:border-t-0"
           role="navigation"
           aria-label="主导航"
         >
-          <div className="max-w-lg mx-auto glass border-t border-pair-border/40 px-2 py-1.5">
-            <div className="flex justify-around items-center">
+          <div className="max-w-lg mx-auto lg:max-w-7xl lg:px-8 glass border-t border-pair-border/40 lg:border-t-0 px-2 py-1.5">
+            <div className="flex justify-around items-center lg:justify-start lg:gap-8">
               <NavItem to="/" icon={Home} label="今天" />
               <NavItem to="/timeline" icon={Clock} label="轨迹" />
               <NavItem to="/report" icon={FileText} label="日报" />
