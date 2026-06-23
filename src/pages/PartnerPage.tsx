@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useAppDispatch, useApi } from '../stores/AppStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, User, Copy, Check, Target, Shield } from 'lucide-react';
+import { ArrowLeft, Heart, Shield, Target, User, ChevronRight, Copy, Check } from 'lucide-react';
 
 export function PartnerPage() {
   const navigate = useNavigate();
@@ -86,6 +86,30 @@ export function PartnerPage() {
                 </div>
               </div>
             </div>
+
+            {/* Lifeline Entry */}
+            <motion.button
+              onClick={() => navigate('/lifeline')}
+              className="w-full bg-pair-surface rounded-3xl p-5 border border-pair-border/50 shadow-card card-shine mb-6 flex items-center gap-4 group relative overflow-hidden"
+              whileHover={{ x: 4, scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-pair-primary/5 via-transparent to-pair-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="relative z-10 w-12 h-12 rounded-2xl bg-gradient-to-br from-pair-primary/15 to-pair-accent/10 flex items-center justify-center border border-pair-primary/10">
+                <Heart size={20} className="text-pair-primary" />
+              </div>
+              <div className="relative z-10 flex-1 text-left">
+                <div className="text-sm font-semibold text-pair-text group-hover:text-pair-primary transition-colors">生命线</div>
+                <div className="text-xs text-pair-textMuted/70">查看你们的共同行动轨迹</div>
+              </div>
+              <motion.div
+                className="relative z-10"
+                animate={{ x: [0, 3, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <ChevronRight size={18} className="text-pair-textMuted/40 group-hover:text-pair-primary/60 transition-colors" />
+              </motion.div>
+            </motion.button>
 
             {/* Verification */}
             <div className="bg-pair-surface rounded-3xl p-6 border border-pair-border/50 shadow-card card-shine mb-6">

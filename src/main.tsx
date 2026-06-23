@@ -14,6 +14,7 @@ import { ContextPage } from './pages/ContextPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { AuthPage } from './pages/AuthPage'
+import { LifelinePage } from './pages/LifelinePage'
 import { DailyReportPage } from './pages/DailyReportPage'
 import './index.css'
 
@@ -31,6 +32,7 @@ function App() {
             <Route path="/end/:id" element={<EndPage />} />
             <Route path="/timeline" element={<TimelinePage />} />
             <Route path="/partner" element={<PartnerPage />} />
+            <Route path="/lifeline" element={<LifelinePage />} />
             <Route path="/report" element={<DailyReportPage />} />
             <Route path="/report/:date" element={<DailyReportPage />} />
             <Route path="/context" element={<ContextPage />} />
