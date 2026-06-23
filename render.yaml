@@ -17,7 +17,7 @@ services:
       - key: PORT
         value: 10000
       - key: DATABASE_URL
-        value: file:./prod.db
+        value: "postgresql://user:pass@host:5432/db"  # Replace with Neon connection string after signup
       - key: JWT_SECRET
         generateValue: true
     healthCheckPath: /health
