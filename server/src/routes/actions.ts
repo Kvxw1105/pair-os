@@ -23,6 +23,7 @@ const endSchema = z.object({
   result: z.enum(['completed', 'partial', 'abandoned']),
   completionPercent: z.number().int().min(0).max(100).optional().nullable(),
   note: z.string().optional(),
+  category: z.enum(['work', 'study', 'life', 'health', 'social', 'rest']).optional(),
 });
 
 router.get('/', async (req: AuthRequest, res) => {
@@ -196,6 +197,7 @@ router.post('/:id/end', async (req: AuthRequest, res) => {
         result: data.result,
         resultNote: data.note || null,
         completionPercent: data.completionPercent || (data.result === 'completed' ? 100 : data.result === 'partial' ? 50 : null),
+        category: data.category || existing.category || null,
         updatedAt: now,
         startedAt: null,
       },

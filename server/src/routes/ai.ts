@@ -95,6 +95,87 @@ router.post('/test', async (req, res) => {
   }
 });
 
+// Classify action title into category - no auth needed for local mode
+router.post('/classify', async (req, res) => {
+  try {
+    const { title } = z.object({ title: z.string().min(1).max(200) }).parse(req.body);
+
+    const config = getLocalAiConfig(req);
+    if (!config) {
+      // Fallback: simple keyword-based classification
+      const lower = title.toLowerCase();
+      let category = 'life';
+      if (/写|code|开发|编程|项目|工作|会议|报告|加班|邮件|客户/.test(lower)) category = 'work';
+      else if (/读|学|书|课程|考试|论文|研究|知识/.test(lower)) category = 'study';
+      else if (/跑|运动|健身|瑜伽|游泳|走|锻炼|身体|睡|休息| nap/.test(lower)) category = 'health';
+      else if (/聊|聚|朋友|家人|吃饭|约会|社交|见面|电话/.test(lower)) category = 'social';
+      else if (/游戏|剧|电影|娱乐|玩|放松|刷|看|听/.test(lower)) category = 'rest';
+      
+      res.json({ category, confidence: 0.6, method: 'fallback' });
+      return;
+    }
+
+    const url = `${config.baseUrl}/chat/completions`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          {
+            role: 'system',
+            content: `你是一个行动分类助手。用户输入了一个行动标题，请将其分类到以下类别之一：
+
+work（工作）: 编程、开发、会议、写报告、加班、项目、客户沟通等
+study（学习）: 阅读、课程、考试、论文、研究、技能学习等
+life（生活）: 做饭、打扫、购物、通勤、整理等日常事务
+health（健康）: 运动、健身、睡觉、休息、瑜伽、散步等
+social（社交）: 和朋友聚会、家人聊天、约会、社交活动等
+rest（休息）: 娱乐、游戏、看电影、刷手机、放松等
+
+只输出分类名称（英文小写），不要解释。`,
+          },
+          { role: 'user', content: title },
+        ],
+        temperature: 0.3,
+        max_tokens: 10,
+      }),
+    });
+
+    if (!response.ok) {
+      // Fallback on AI error
+      const lower = title.toLowerCase();
+      let category = 'life';
+      if (/写|code|开发|编程|项目|工作|会议|报告|加班|邮件|客户/.test(lower)) category = 'work';
+      else if (/读|学|书|课程|考试|论文|研究|知识/.test(lower)) category = 'study';
+      else if (/跑|运动|健身|瑜伽|游泳|走|锻炼|身体|睡|休息| nap/.test(lower)) category = 'health';
+      else if (/聊|聚|朋友|家人|吃饭|约会|社交|见面|电话/.test(lower)) category = 'social';
+      else if (/游戏|剧|电影|娱乐|玩|放松|刷|看|听/.test(lower)) category = 'rest';
+      
+      res.json({ category, confidence: 0.5, method: 'fallback' });
+      return;
+    }
+
+    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
+    const raw = (data.choices?.[0]?.message?.content || '').trim().toLowerCase();
+    
+    const validCategories = ['work', 'study', 'life', 'health', 'social', 'rest'];
+    const category = validCategories.find(c => raw.includes(c)) || 'life';
+    
+    res.json({ category, confidence: 0.9, method: 'ai' });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0].message });
+      return;
+    }
+    // Fallback on any error
+    res.json({ category: 'life', confidence: 0.3, method: 'fallback' });
+  }
+});
+
 // Process user input: normalize + generate steps - no auth needed for local mode
 router.post('/process', async (req, res) => {
   try {

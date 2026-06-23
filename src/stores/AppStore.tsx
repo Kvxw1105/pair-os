@@ -140,7 +140,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         visibility: action.visibility,
         needsVerification: action.visibility === 'needs_verification',
         evidenceUrl: null, evidenceText: null,
-        mainLine: state.profile?.mainLine || null, tags: [],
+        mainLine: state.profile?.mainLine || null, category: null, tags: [],
         createdAt: now(), updatedAt: now(), userId: state.profile?.id || 'me',
       };
       const events: ActionEvent[] = [
@@ -445,7 +445,7 @@ export function useActionDispatch() {
         completionPercent: completionPercent || (result === 'completed' ? 100 : result === 'partial' ? 50 : null),
         visibility, needsVerification: visibility === 'needs_verification',
         evidenceUrl: null, evidenceText: null,
-        mainLine: state.profile?.mainLine || null, tags: [],
+        mainLine: state.profile?.mainLine || null, category: null, tags: [],
         createdAt: now(), updatedAt: now(), userId: state.profile?.id || 'me',
       };
       const events: ActionEvent[] = [
@@ -459,9 +459,20 @@ export function useActionDispatch() {
 
     async endAction(actionId: string, result: 'completed' | 'partial' | 'abandoned', completionPercent?: number | null, note?: string) {
       const frontendResult = result === 'abandoned' ? 'failed' : result;
+      
+      // Auto-classify action if AI is configured
+      let category: string | undefined;
+      try {
+        const action = state.actions.find((a) => a.id === actionId);
+        if (action && !action.category) {
+          const classifyResult = await api.classifyAction(action.title);
+          category = classifyResult.category;
+        }
+      } catch { /* ignore classification errors */ }
+      
       if (api.isAuthenticated()) {
         try {
-          await api.endAction(actionId, result, completionPercent, note);
+          await api.endAction(actionId, result, completionPercent, note, category);
           dispatch({ type: 'END_ACTION', actionId, result: frontendResult as any, completionPercent: completionPercent ?? null, note: note ?? '' });
           return;
         } catch { /* fallback to local */ }

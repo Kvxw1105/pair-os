@@ -228,6 +228,39 @@ export function ContextPage() {
           </motion.div>
         )}
 
+        {/* Category Distribution */}
+        {hasData && (
+          <motion.div variants={itemVariants}>
+            <div className="bg-pair-surface rounded-3xl p-5 border border-pair-border/50 shadow-card">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 size={14} className="text-pair-textMuted" />
+                <span className="text-xs font-semibold text-pair-textMuted tracking-wide">分类分布</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: 'work', label: '工作', icon: '💼', color: 'bg-pair-primary/15 text-pair-primary' },
+                  { key: 'study', label: '学习', icon: '📚', color: 'bg-pair-accent/15 text-pair-accent' },
+                  { key: 'life', label: '生活', icon: '🏠', color: 'bg-pair-warn/15 text-pair-warn' },
+                  { key: 'health', label: '健康', icon: '💪', color: 'bg-pair-success/15 text-pair-success' },
+                  { key: 'social', label: '社交', icon: '👥', color: 'bg-pair-stuck/15 text-pair-stuck' },
+                  { key: 'rest', label: '休息', icon: '🎮', color: 'bg-pair-textMuted/15 text-pair-textMuted' },
+                ].map((cat) => {
+                  const count = myActions.filter((a) => a.category === cat.key).length;
+                  const duration = myActions.filter((a) => a.category === cat.key).reduce((s, a) => s + a.totalDurationMs, 0);
+                  if (count === 0) return null;
+                  return (
+                    <div key={cat.key} className={`rounded-2xl p-3 border border-pair-border/30 ${cat.color}`}>
+                      <div className="text-lg mb-0.5">{cat.icon}</div>
+                      <div className="text-xs font-semibold">{cat.label}</div>
+                      <div className="text-[10px] opacity-70">{count} 项 · {formatDurationShort(duration)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* State Distribution */}
         {hasData && distribution.length > 0 && (
           <motion.div variants={itemVariants}>

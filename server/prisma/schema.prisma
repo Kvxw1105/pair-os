@@ -65,6 +65,7 @@ model Action {
   evidenceUrl     String?   @map("evidence_url")
   evidenceText    String?   @map("evidence_text")
   mainLine        String?   @map("main_line")
+  category        String?   // work, study, life, health, social, rest
   tags            String?   // JSON array string
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")

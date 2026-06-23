@@ -133,10 +133,10 @@ class ApiClient {
     });
   }
 
-  async endAction(id: string, result: string, completionPercent?: number | null, note?: string) {
+  async endAction(id: string, result: string, completionPercent?: number | null, note?: string, category?: string) {
     return this.request(`/actions/${id}/end`, {
       method: 'POST',
-      body: JSON.stringify({ result, completionPercent, note }),
+      body: JSON.stringify({ result, completionPercent, note, category }),
     });
   }
 
@@ -201,6 +201,13 @@ class ApiClient {
 
   async processAction(title: string) {
     return this.request('/ai/process', {
+      method: 'POST',
+      body: JSON.stringify({ title }),
+    });
+  }
+
+  async classifyAction(title: string) {
+    return this.request('/ai/classify', {
       method: 'POST',
       body: JSON.stringify({ title }),
     });

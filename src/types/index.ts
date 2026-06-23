@@ -68,6 +68,7 @@ export interface ActionItem {
   evidenceUrl: string | null;
   evidenceText: string | null;
   mainLine: string | null;
+  category: 'work' | 'study' | 'life' | 'health' | 'social' | 'rest' | null;
   tags: string[];
   createdAt: number;
   updatedAt: number;
