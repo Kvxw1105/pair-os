@@ -3,7 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { execSync } from 'child_process';
 import authRoutes from './routes/auth.js';
 import actionRoutes from './routes/actions.js';
 import partnerRoutes from './routes/partner.js';
@@ -31,10 +30,10 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/checkin', checkinRoutes);
 
 // Serve frontend static files in production
+// Works whether cwd is project root or server/ subdirectory
 const frontendDistPaths = [
   path.join(process.cwd(), 'dist'),
-  path.join(process.cwd(), '../dist'),
-  path.join(__dirname, '../../dist'),
+  path.join(process.cwd(), '..', 'dist'),
 ];
 
 const frontendDist = frontendDistPaths.find((p) => {
