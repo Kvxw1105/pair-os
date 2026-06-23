@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppState, useAppDispatch } from '../stores/AppStore';
+import { useAppState, useAppDispatch, useApi } from '../stores/AppStore';
 import { motion } from 'framer-motion';
 import { ArrowLeft, User, Copy, Check, Target, Shield } from 'lucide-react';
 
@@ -8,6 +8,7 @@ export function PartnerPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const state = useAppState();
+  const api = useApi();
   const partner = state.partner;
   const [copied, setCopied] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
@@ -19,11 +20,17 @@ export function PartnerPage() {
   const completedCount = sharedActions.filter((a) => a.state === 'completed' || a.state === 'partial').length;
   const totalDuration = sharedActions.reduce((sum, a) => sum + a.totalDurationMs, 0);
 
-  const handleCopyLink = () => {
-    const inviteLink = `https://pairos.app/invite/${state.profile?.id || 'demo'}`;
-    navigator.clipboard.writeText(inviteLink).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyLink = async () => {
+    try {
+      const res = await api.getInviteLink();
+      const inviteCode = res.inviteCode;
+      const inviteLink = `${window.location.origin}/#/auth?invite=${inviteCode}`;
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to get invite link:', err);
+    }
   };
 
   return (

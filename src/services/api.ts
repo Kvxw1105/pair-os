@@ -145,6 +145,21 @@ class ApiClient {
     return this.request('/partner/status');
   }
 
+  async getInviteLink() {
+    return this.request('/partner/invite-link');
+  }
+
+  async getInviteInfo(inviteCode: string) {
+    return this.request(`/partner/invite-info/${inviteCode}`);
+  }
+
+  async acceptInvite(inviteCode: string, email: string, password: string, name: string) {
+    return this.request('/partner/accept-invite', {
+      method: 'POST',
+      body: JSON.stringify({ inviteCode, email, password, name }),
+    });
+  }
+
   async invitePartner(partnerEmail: string) {
     return this.request('/partner/invite', {
       method: 'POST',

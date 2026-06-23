@@ -56,6 +56,159 @@ router.get('/status', async (req: AuthRequest, res) => {
   }
 });
 
+// Generate invite link endpoint
+router.get('/invite-link', async (req: AuthRequest, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { id: true, name: true },
+    });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Check if user already has a partner
+    const existing = await prisma.partnership.findFirst({
+      where: {
+        OR: [
+          { userId: req.user!.id },
+          { partnerId: req.user!.id },
+        ],
+      },
+    });
+
+    res.json({
+      inviteCode: user.id,
+      inviterName: user.name,
+      hasPartner: !!existing,
+    });
+  } catch (err) {
+    console.error('Get invite link error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Accept invite (for new users registering via invite link)
+router.post('/accept-invite', async (req, res) => {
+  try {
+    const { inviteCode, email, password, name } = z.object({
+      inviteCode: z.string().min(1),
+      email: z.string().email(),
+      password: z.string().min(6),
+      name: z.string().min(1).max(50),
+    }).parse(req.body);
+
+    // Find inviter
+    const inviter = await prisma.user.findUnique({
+      where: { id: inviteCode },
+    });
+    if (!inviter) {
+      res.status(404).json({ error: 'Invite link invalid or expired' });
+      return;
+    }
+
+    // Check if inviter already has a partner
+    const inviterPartner = await prisma.partnership.findFirst({
+      where: {
+        OR: [
+          { userId: inviter.id },
+          { partnerId: inviter.id },
+        ],
+      },
+    });
+    if (inviterPartner) {
+      res.status(400).json({ error: 'Inviter already has a partner' });
+      return;
+    }
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+    if (existingUser) {
+      res.status(400).json({ error: 'Email already registered' });
+      return;
+    }
+
+    // Create new user
+    const bcrypt = await import('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 10);
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name,
+        onboardingCompleted: true,
+      },
+    });
+
+    // Create partnership
+    await prisma.partnership.create({
+      data: {
+        userId: inviter.id,
+        partnerId: newUser.id,
+        status: 'active',
+      },
+    });
+
+    // Generate token for auto-login
+    const jwt = await import('jsonwebtoken');
+    const token = jwt.sign(
+      { userId: newUser.id, email: newUser.email },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
+      user: { id: newUser.id, name: newUser.name, email: newUser.email },
+      partnerName: inviter.name,
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0].message });
+      return;
+    }
+    console.error('Accept invite error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get invite info (public, no auth needed)
+router.get('/invite-info/:inviteCode', async (req, res) => {
+  try {
+    const { inviteCode } = req.params;
+    const inviter = await prisma.user.findUnique({
+      where: { id: inviteCode },
+      select: { id: true, name: true },
+    });
+    if (!inviter) {
+      res.status(404).json({ error: 'Invite link invalid' });
+      return;
+    }
+
+    // Check if inviter already has a partner
+    const hasPartner = await prisma.partnership.findFirst({
+      where: {
+        OR: [
+          { userId: inviter.id },
+          { partnerId: inviter.id },
+        ],
+      },
+    });
+
+    res.json({
+      inviterName: inviter.name,
+      inviterId: inviter.id,
+      available: !hasPartner,
+    });
+  } catch (err) {
+    console.error('Get invite info error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.post('/invite', async (req: AuthRequest, res) => {
   try {
     const data = inviteSchema.parse(req.body);
