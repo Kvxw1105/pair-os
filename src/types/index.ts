@@ -153,6 +153,7 @@ export interface AppState {
   partnerPending: boolean;
   reminders: Reminder[];
   isOnboarding: boolean;
+  theme: 'light' | 'dark' | 'system';
 }
 
 export type AppAction =
@@ -179,3 +180,4 @@ export type AppAction =
   | { type: 'UPDATE_ACTION_TITLE'; actionId: string; title: string }
   | { type: 'UPDATE_ACTION_VISIBILITY'; actionId: string; visibility: Visibility }
   | { type: 'DELETE_ACTION'; actionId: string }
+  | { type: 'SET_THEME'; theme: 'light' | 'dark' | 'system' }

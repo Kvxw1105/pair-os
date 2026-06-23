@@ -46,7 +46,10 @@ function getInitialState(): AppState {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved) as AppState;
-      if (parsed.profile && parsed.actions) return parsed;
+      if (parsed.profile && parsed.actions) {
+        if (!parsed.theme) parsed.theme = 'system';
+        return parsed;
+      }
     }
   } catch { /* ignore */ }
   return {
@@ -57,6 +60,7 @@ function getInitialState(): AppState {
     partnerPending: false,
     reminders: [],
     isOnboarding: true,
+    theme: 'system',
   };
 }
 
@@ -244,6 +248,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_ACTION_TITLE': return next({ actions: state.actions.map((a) => a.id === action.actionId ? { ...a, title: action.title, updatedAt: now() } : a) });
     case 'UPDATE_ACTION_VISIBILITY': return next({ actions: state.actions.map((a) => a.id === action.actionId ? { ...a, visibility: action.visibility, updatedAt: now() } : a) });
     case 'DELETE_ACTION': return next({ actions: state.actions.filter((a) => a.id !== action.actionId) });
+    case 'SET_THEME': return next({ theme: action.theme });
 
     default: return state;
   }
@@ -308,6 +313,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }).catch(() => { /* fallback to local */ });
   }, []);
+
+  // Apply theme to document
+  useEffect(() => {
+    const html = document.documentElement;
+    if (state.theme === 'system') {
+      html.removeAttribute('data-theme');
+    } else {
+      html.setAttribute('data-theme', state.theme);
+    }
+  }, [state.theme]);
 
   return (
     <AppContext.Provider value={{ state, dispatch, api }}>

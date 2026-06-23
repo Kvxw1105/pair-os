@@ -213,6 +213,41 @@ export function SettingsPage() {
             ))}
           </div>
 
+          {/* Theme Toggle */}
+          <motion.div
+            className="bg-pair-surface/90 backdrop-blur rounded-3xl p-5 border border-pair-border/50 shadow-card"
+            initial={{ opacity: 0, y: 15, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 0.15, duration: 0.5, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <div className="flex items-center gap-2.5 mb-3">
+              <Moon size={14} className="text-pair-textMuted" />
+              <span className="text-xs font-semibold text-pair-textMuted tracking-wide">外观主题</span>
+            </div>
+            <div className="flex gap-2">
+              {[
+                { key: 'light' as const, label: '浅色', icon: '☀️' },
+                { key: 'dark' as const, label: '深色', icon: '🌙' },
+                { key: 'system' as const, label: '跟随系统', icon: '🖥️' },
+              ].map((opt) => (
+                <motion.button
+                  key={opt.key}
+                  onClick={() => dispatch({ type: 'SET_THEME', theme: opt.key })}
+                  className={`flex-1 py-2.5 rounded-2xl text-xs font-medium transition-all border flex items-center justify-center gap-1.5 ${
+                    state.theme === opt.key
+                      ? 'bg-pair-primary/10 border-pair-primary/30 text-pair-primary'
+                      : 'bg-pair-surfaceAlt/40 border-pair-border/30 text-pair-textSecondary hover:bg-pair-surfaceAlt/70'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <span>{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+
           {/* AI Config */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
