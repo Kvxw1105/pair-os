@@ -5,6 +5,57 @@ import { authMiddleware, type AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
+// AI test connection doesn't require auth - user can test before signing in
+router.post('/test', async (req: AuthRequest, res) => {
+  try {
+    const body = z.object({
+      baseUrl: z.string().min(1),
+      apiKey: z.string().min(1),
+      model: z.string().min(1),
+    }).parse(req.body);
+
+    const baseUrl = body.baseUrl.trim().replace(/\/$/, '');
+    const apiKey = body.apiKey;
+    const model = body.model.trim();
+
+    const url = `${baseUrl}/chat/completions`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [{ role: 'user', content: 'Hi' }],
+        max_tokens: 5,
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      res.status(400).json({
+        error: `Connection failed: HTTP ${response.status}`,
+        detail: text.slice(0, 200)
+      });
+      return;
+    }
+
+    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
+    if (data.choices?.[0]?.message?.content) {
+      res.json({ success: true, message: '连接成功' });
+    } else {
+      res.json({ success: true, message: '连接成功（响应格式异常）' });
+    }
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0].message });
+      return;
+    }
+    res.status(400).json({ error: `Connection failed: ${(err as Error).message}` });
+  }
+});
+
 router.use(authMiddleware as any);
 
 // Helper: get AI config from headers (local mode) or database (cloud mode)
@@ -99,65 +150,6 @@ router.put('/config', async (req: AuthRequest, res) => {
     }
     console.error('Update AI config error:', err);
     res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Test connection
-router.post('/test', async (req: AuthRequest, res) => {
-  try {
-    const localCfg = await getAiConfig(req);
-    let baseUrl: string, apiKey: string, model: string;
-    
-    if (localCfg) {
-      baseUrl = localCfg.baseUrl;
-      apiKey = localCfg.apiKey;
-      model = localCfg.model;
-    } else {
-      const body = z.object({
-        baseUrl: z.string().min(1),
-        apiKey: z.string().min(1),
-        model: z.string().min(1),
-      }).parse(req.body);
-      baseUrl = body.baseUrl;
-      apiKey = body.apiKey;
-      model = body.model;
-    }
-
-    const url = `${baseUrl.trim().replace(/\/$/, '')}/chat/completions`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: model.trim(),
-        messages: [{ role: 'user', content: 'Hi' }],
-        max_tokens: 5,
-      }),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      res.status(400).json({ 
-        error: `Connection failed: HTTP ${response.status}`, 
-        detail: text.slice(0, 200) 
-      });
-      return;
-    }
-
-    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
-    if (data.choices?.[0]?.message?.content) {
-      res.json({ success: true, message: '连接成功' });
-    } else {
-      res.json({ success: true, message: '连接成功（响应格式异常）' });
-    }
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors[0].message });
-      return;
-    }
-    res.status(400).json({ error: `Connection failed: ${(err as Error).message}` });
   }
 });
 
