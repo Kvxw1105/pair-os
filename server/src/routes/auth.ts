@@ -92,4 +92,38 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Guest register — only requires name, auto-generates email/password
+router.post('/guest', async (req, res) => {
+  try {
+    const { name } = z.object({
+      name: z.string().min(1).max(50),
+    }).parse(req.body);
+
+    const guestId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(2);
+    const guestEmail = `guest_${guestId}@pairos.local`;
+    const guestPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    const passwordHash = await bcrypt.hash(guestPassword, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email: guestEmail,
+        passwordHash,
+        name,
+        onboardingCompleted: true,
+      },
+      select: { id: true, email: true, name: true },
+    });
+
+    const token = generateToken(user.id);
+    res.json({ token, user });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0].message });
+      return;
+    }
+    console.error('Guest register error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

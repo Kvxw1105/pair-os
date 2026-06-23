@@ -90,6 +90,15 @@ class ApiClient {
     return data;
   }
 
+  async guestRegister(name: string) {
+    const data = await this.request('/auth/guest', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    this.setToken(data.token);
+    return data;
+  }
+
   async login(email: string, password: string) {
     const data = await this.request('/auth/login', {
       method: 'POST',

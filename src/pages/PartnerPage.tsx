@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useAppDispatch, useApi, usePartnerMessages } from '../stores/AppStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Heart, Shield, Target, User, ChevronRight, Copy, Check, Bomb, Moon, Send, LogIn } from 'lucide-react';
+import { ArrowLeft, Heart, Shield, Target, User, ChevronRight, Copy, Check, Bomb, Moon, Send } from 'lucide-react';
 
 export function PartnerPage() {
   const navigate = useNavigate();
@@ -13,6 +13,8 @@ export function PartnerPage() {
   const [copied, setCopied] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [messageText, setMessageText] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [guestLoading, setGuestLoading] = useState(false);
   const { sendMessage } = usePartnerMessages();
 
   const sharedActions = state.actions.filter(
@@ -40,6 +42,20 @@ export function PartnerPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to get invite link:', err);
+    }
+  };
+
+  const handleGuestRegister = async () => {
+    if (!guestName.trim()) return;
+    setGuestLoading(true);
+    try {
+      const data = await api.guestRegister(guestName.trim());
+      dispatch({ type: 'LOGIN_SUCCESS', token: data.token, user: data.user });
+      setShowInvite(true);
+    } catch (err) {
+      console.error('Guest register failed:', err);
+    } finally {
+      setGuestLoading(false);
     }
   };
 
@@ -218,13 +234,48 @@ export function PartnerPage() {
                   发送邀请
                 </button>
               ) : (
-                <button
-                  onClick={() => navigate('/auth')}
-                  className="px-6 py-3 bg-pair-primary text-white rounded-2xl font-semibold text-sm shadow-glow-primary hover:shadow-glow-primary transition-all duration-300 flex items-center gap-2 mx-auto"
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-pair-surface rounded-2xl p-5 border border-pair-border/50 shadow-card card-shine max-w-sm mx-auto"
                 >
-                  <LogIn size={16} />
-                  注册后邀请伙伴
-                </button>
+                  <p className="text-sm text-pair-textSecondary mb-3">输入你的昵称，生成邀请链接</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && guestName.trim() && !guestLoading) {
+                          handleGuestRegister();
+                        }
+                      }}
+                      placeholder="你的名字"
+                      className="flex-1 px-4 py-3 bg-pair-surfaceAlt/60 rounded-xl text-sm text-pair-text border border-pair-border/40 focus:border-pair-primary focus:outline-none transition-colors"
+                    />
+                    <motion.button
+                      onClick={handleGuestRegister}
+                      disabled={!guestName.trim() || guestLoading}
+                      className="px-5 py-3 bg-pair-primary text-white rounded-xl font-semibold text-sm shadow-glow-primary disabled:opacity-40 disabled:shadow-none transition-all flex items-center gap-1.5"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {guestLoading ? (
+                        <motion.div
+                          className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        />
+                      ) : (
+                        <>
+                          <Send size={14} />
+                          生成邀请
+                        </>
+                      )}
+                    </motion.button>
+                  </div>
+                  <p className="text-[11px] text-pair-textMuted/50 mt-3">不需要邮箱，仅昵称即可邀请</p>
+                </motion.div>
               )}
             </div>
 
