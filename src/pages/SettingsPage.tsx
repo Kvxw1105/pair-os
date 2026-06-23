@@ -4,7 +4,8 @@ import { useAppState, useAppDispatch, useApi } from '../stores/AppStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DreamParticles } from '../components/DreamParticles';
 import { GlowingOrb } from '../components/DreamEffects';
-import { ArrowLeft, User, Bell, Moon, Trash2, Brain, ChevronRight, LogOut, Sparkles, Check, AlertCircle, Loader2, Shield, Cloud, Save } from 'lucide-react';
+import { ArrowLeft, User, Bell, Moon, Trash2, Brain, ChevronRight, LogOut, Sparkles, Check, AlertCircle, Loader2, Shield, Cloud, Save, Settings } from 'lucide-react';
+import { AI_PROVIDERS, getProviderById, detectProvider } from '../utils/ai-providers';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -23,6 +24,10 @@ export function SettingsPage() {
   const [aiTestStatus, setAiTestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [aiTestMsg, setAiTestMsg] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState('siliconflow');
+  const [showProviderPicker, setShowProviderPicker] = useState(false);
+
+  const currentProvider = getProviderById(selectedProvider);
 
   useEffect(() => {
     const localMode = api.isLocalAiMode();
@@ -40,11 +45,26 @@ export function SettingsPage() {
     if (api.isAuthenticated()) {
       api.getAiConfig().then((cfg) => {
         setAiEnabled(cfg.enabled);
-        if (cfg.baseUrl) setAiBaseUrl(cfg.baseUrl);
+        if (cfg.baseUrl) {
+          setAiBaseUrl(cfg.baseUrl);
+          const detected = detectProvider(cfg.baseUrl);
+          if (detected) setSelectedProvider(detected.id);
+        }
         if (cfg.model) setAiModel(cfg.model);
       }).catch(() => {});
     }
   }, []);
+
+  const handleSelectProvider = (providerId: string) => {
+    const provider = getProviderById(providerId);
+    if (!provider) return;
+    setSelectedProvider(providerId);
+    if (provider.id !== 'custom') {
+      setAiBaseUrl(provider.baseUrl);
+      setAiModel(provider.defaultModel);
+    }
+    setShowProviderPicker(false);
+  };
 
   const handleSaveAi = async () => {
     setAiLoading(true);
@@ -235,12 +255,112 @@ export function SettingsPage() {
                     transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
                     className="relative z-10 space-y-3 pt-2 border-t border-pair-border/30 overflow-hidden"
                   >
+                    {/* Provider Selector */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.05 }}
+                    >
+                      <label className="text-xs text-pair-textMuted/70 mb-1.5 block flex items-center gap-1.5">
+                        <Settings size={12} className="text-pair-primary/50" />
+                        选择 AI 提供商
+                      </label>
+                      <button
+                        onClick={() => setShowProviderPicker(!showProviderPicker)}
+                        className="w-full px-3.5 py-3 bg-pair-surfaceAlt/60 rounded-2xl border border-pair-border/40 text-sm text-left flex items-center justify-between hover:bg-pair-surfaceAlt/80 transition-all"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {currentProvider?.region === 'cn' ? (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-pair-primary/10 text-pair-primary font-medium">国内</span>
+                          ) : currentProvider?.region === 'global' && currentProvider.id !== 'custom' ? (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-pair-accent/10 text-pair-accent font-medium">国外</span>
+                          ) : null}
+                          <span className="text-pair-text font-medium">{currentProvider?.name || '自定义'}</span>
+                          {currentProvider?.freeTier && (
+                            <span className="text-[10px] text-pair-textMuted/60">{currentProvider.freeTier}</span>
+                          )}
+                        </div>
+                        <motion.div animate={{ rotate: showProviderPicker ? 180 : 0 }} transition={{ duration: 0.3 }}>
+                          <ChevronRight size={16} className="text-pair-textMuted/40" style={{ transform: 'rotate(90deg)' }} />
+                        </motion.div>
+                      </button>
+
+                      <AnimatePresence>
+                        {showProviderPicker && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }}
+                            className="overflow-hidden mt-2"
+                          >
+                            <div className="grid grid-cols-2 gap-2">
+                              {AI_PROVIDERS.map((provider) => (
+                                <motion.button
+                                  key={provider.id}
+                                  onClick={() => handleSelectProvider(provider.id)}
+                                  className={`p-3 rounded-2xl border text-left transition-all duration-200 ${
+                                    selectedProvider === provider.id
+                                      ? 'bg-pair-primary/5 border-pair-primary/30 shadow-sm'
+                                      : 'bg-pair-surfaceAlt/40 border-pair-border/30 hover:bg-pair-surfaceAlt/70'
+                                  }`}
+                                  whileTap={{ scale: 0.97 }}
+                                >
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {provider.region === 'cn' ? (
+                                      <span className="text-[10px] px-1 py-0.5 rounded bg-pair-primary/10 text-pair-primary">国内</span>
+                                    ) : provider.id !== 'custom' ? (
+                                      <span className="text-[10px] px-1 py-0.5 rounded bg-pair-accent/10 text-pair-accent">国外</span>
+                                    ) : (
+                                      <span className="text-[10px] px-1 py-0.5 rounded bg-pair-textMuted/10 text-pair-textMuted">自定义</span>
+                                    )}
+                                    <span className="text-xs font-semibold text-pair-text">{provider.name}</span>
+                                  </div>
+                                  <p className="text-[10px] text-pair-textMuted/70 leading-relaxed">{provider.description}</p>
+                                  {provider.freeTier && (
+                                    <p className="text-[10px] text-pair-success mt-0.5">{provider.freeTier}</p>
+                                  )}
+                                </motion.button>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+
+                    {/* Model selector for preset providers */}
+                    {currentProvider && currentProvider.id !== 'custom' && currentProvider.models.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.08 }}
+                      >
+                        <label className="text-xs text-pair-textMuted/70 mb-1.5 block">选择模型</label>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {currentProvider.models.map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => setAiModel(m.id)}
+                              className={`px-3 py-2 rounded-xl text-[11px] font-medium transition-all border ${
+                                aiModel === m.id
+                                  ? 'bg-pair-primary/10 border-pair-primary/30 text-pair-primary'
+                                  : 'bg-pair-surfaceAlt/40 border-pair-border/30 text-pair-textSecondary hover:bg-pair-surfaceAlt/70'
+                              }`}
+                            >
+                              <div>{m.name}</div>
+                              <div className="text-[9px] text-pair-textMuted/60">{m.description}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+
                     {/* Local mode switch */}
                     <motion.div
                       className="flex items-center justify-between py-2"
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.05 }}
+                      transition={{ delay: 0.1 }}
                     >
                       <div>
                         <div className="text-sm font-medium text-pair-text flex items-center gap-2">
@@ -265,26 +385,35 @@ export function SettingsPage() {
                     <motion.div
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 }}
+                      transition={{ delay: 0.15 }}
                     >
                       <label className="text-xs text-pair-textMuted/70 mb-1.5 block flex items-center gap-1.5">
                         <Cloud size={12} className="text-pair-primary/50" />
                         Base URL
+                        {selectedProvider === 'custom' && <span className="text-[10px] text-pair-warn">必填</span>}
                       </label>
                       <input
                         type="text"
                         value={aiBaseUrl}
-                        onChange={(e) => setAiBaseUrl(e.target.value)}
+                        onChange={(e) => {
+                          setAiBaseUrl(e.target.value);
+                          const detected = detectProvider(e.target.value);
+                          if (detected && detected.id !== selectedProvider) {
+                            setSelectedProvider(detected.id);
+                          } else if (!detected && selectedProvider !== 'custom') {
+                            setSelectedProvider('custom');
+                          }
+                        }}
                         placeholder="https://api.example.com/v1"
                         className="w-full px-3.5 py-3 bg-pair-surfaceAlt/60 rounded-2xl border border-pair-border/40 text-sm text-pair-text focus:border-pair-primary/30 focus:outline-none focus:ring-2 focus:ring-pair-primary/8 transition-all duration-300 hover:bg-pair-surfaceAlt/80"
                       />
-                      <p className="text-[10px] text-pair-textMuted/60 mt-1">支持硅基流动、DeepSeek、OpenRouter、自定义中转等 OpenAI 兼容接口</p>
+                      <p className="text-[10px] text-pair-textMuted/60 mt-1">支持 OpenAI 兼容接口。修改 URL 会自动识别提供商。</p>
                     </motion.div>
 
                     <motion.div
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.15 }}
+                      transition={{ delay: 0.2 }}
                     >
                       <label className="text-xs text-pair-textMuted/70 mb-1.5 block">API Key</label>
                       <input
@@ -299,7 +428,7 @@ export function SettingsPage() {
                     <motion.div
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
+                      transition={{ delay: 0.25 }}
                     >
                       <label className="text-xs text-pair-textMuted/70 mb-1.5 block">Model</label>
                       <input
@@ -315,7 +444,7 @@ export function SettingsPage() {
                       className="flex gap-2 pt-1"
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.25 }}
+                      transition={{ delay: 0.3 }}
                     >
                       <motion.button
                         onClick={handleTestAi}
