@@ -275,4 +275,87 @@ router.delete('/', async (req: AuthRequest, res) => {
   }
 });
 
+// Partner Messages — 炸弹/爱心/睡帽
+const messageSchema = z.object({
+  type: z.enum(['bomb', 'heart', 'sleep']),
+  message: z.string().max(200).optional(),
+});
+
+router.post('/message', async (req: AuthRequest, res) => {
+  try {
+    const { type, message } = messageSchema.parse(req.body);
+    const userId = req.user!.id;
+
+    // Find partnership
+    const partnership = await prisma.partnership.findFirst({
+      where: {
+        OR: [
+          { userId },
+          { partnerId: userId },
+        ],
+        status: 'active',
+      },
+    });
+
+    if (!partnership) {
+      res.status(400).json({ error: 'No active partner' });
+      return;
+    }
+
+    const receiverId = partnership.userId === userId ? partnership.partnerId : partnership.userId;
+
+    const msg = await prisma.partnerMessage.create({
+      data: {
+        senderId: userId,
+        receiverId,
+        type,
+        message: message || null,
+      },
+    });
+
+    res.json({ success: true, message: msg });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0].message });
+      return;
+    }
+    console.error('Send message error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/messages', async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id;
+
+    const messages = await prisma.partnerMessage.findMany({
+      where: {
+        receiverId: userId,
+        read: false,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    res.json({ messages });
+  } catch (err) {
+    console.error('Get messages error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.patch('/messages/:id/read', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.partnerMessage.update({
+      where: { id },
+      data: { read: true },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Mark read error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

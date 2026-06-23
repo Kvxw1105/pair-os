@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppState, useAppDispatch, useActiveAction, useAwayAction, useTodayActions, useActionDispatch, useApi } from '../stores/AppStore';
+import { useAppState, useAppDispatch, useActiveAction, useAwayAction, useTodayActions, useActionDispatch, useApi, useCheckIn, usePartnerMessages } from '../stores/AppStore';
 import { formatDuration, formatDateFull, getStateLabel } from '../utils/time';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DreamParticles } from '../components/DreamParticles';
@@ -9,7 +9,7 @@ import {
   PageHeader, EmptyState, StatusBadge
 } from '../components/DesignSystem';
 import {
-  Pause, RotateCcw, ChevronRight, Zap, Sparkles, User,
+  Pause, RotateCcw, ChevronRight, Zap, Sparkles, User, Medal,
   Target, TrendingUp, Wind, Compass, Loader2, Flame, Clock, Wand2, ListChecks, ArrowRight, X
 } from 'lucide-react';
 
@@ -38,6 +38,9 @@ export function TodayPage() {
   const awayAction = useAwayAction();
   const todayActions = useTodayActions();
   const api = useApi();
+  const { checkIn, doCheckIn } = useCheckIn();
+  const { unreadMessages, markRead } = usePartnerMessages();
+  const [showMessageBanner, setShowMessageBanner] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [aiRefining, setAiRefining] = useState(false);
@@ -72,6 +75,13 @@ export function TodayPage() {
     }, 1000);
     return () => clearInterval(timer);
   }, [activeAction]);
+
+  // Show message banner when new unread messages arrive
+  useEffect(() => {
+    if (unreadMessages.length > 0) {
+      setShowMessageBanner(true);
+    }
+  }, [unreadMessages.length]);
 
   const handleStart = async (title: string) => {
     if (!title.trim()) return;
@@ -212,6 +222,108 @@ export function TodayPage() {
             ) : undefined
           }
         />
+
+        {/* Check-in Badge */}
+        <motion.div
+          variants={itemVariants}
+          className="mb-5 flex items-center justify-between"
+        >
+          <motion.button
+            onClick={() => {
+              if (!checkIn?.checkedInToday) {
+                doCheckIn();
+              }
+            }}
+            disabled={checkIn?.checkedInToday}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-300 ${
+              checkIn?.checkedInToday
+                ? 'bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border border-amber-200/60 shadow-sm'
+                : 'bg-gradient-to-r from-pair-primary/10 to-pair-accent/10 text-pair-primary border border-pair-primary/20 hover:shadow-glow-primary hover:scale-[1.02]'
+            }`}
+            whileHover={checkIn?.checkedInToday ? {} : { scale: 1.03 }}
+            whileTap={checkIn?.checkedInToday ? {} : { scale: 0.97 }}
+          >
+            <Medal size={16} className={checkIn?.checkedInToday ? 'text-amber-500' : 'text-pair-primary'} />
+            {checkIn?.checkedInToday ? (
+              <span>连续 {checkIn.streak} 天</span>
+            ) : (
+              <span>今日签到</span>
+            )}
+            {checkIn?.checkedInToday && checkIn.streak >= 7 && (
+              <motion.span
+                className="text-xs ml-1"
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ duration: 1, repeat: Infinity, repeatDelay: 2 }}
+              >
+                🔥
+              </motion.span>
+            )}
+          </motion.button>
+
+          {checkIn?.checkedInToday && (
+            <motion.span
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-xs text-pair-textMuted/60"
+            >
+              已签到
+            </motion.span>
+          )}
+        </motion.div>
+
+        {/* Partner Messages Banner */}
+        <AnimatePresence>
+          {showMessageBanner && unreadMessages.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -10, height: 0 }}
+              className="mb-5 overflow-hidden"
+            >
+              {unreadMessages.slice(0, 1).map((msg) => (
+                <motion.div
+                  key={msg.id}
+                  className={`rounded-2xl p-4 border shadow-sm flex items-center gap-3 ${
+                    msg.type === 'bomb'
+                      ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200/50'
+                      : msg.type === 'heart'
+                      ? 'bg-gradient-to-r from-rose-50 to-pink-50 border-rose-200/50'
+                      : 'bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200/50'
+                  }`}
+                  initial={{ scale: 0.95 }}
+                  animate={{ scale: 1 }}
+                >
+                  <div className="text-xl">
+                    {msg.type === 'bomb' ? '💣' : msg.type === 'heart' ? '❤️' : '🌙'}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-pair-text">
+                      {msg.type === 'bomb'
+                        ? '伙伴扔来一个炸弹！'
+                        : msg.type === 'heart'
+                        ? '收到伙伴的爱心鼓励'
+                        : '伙伴提醒你注意休息'}
+                    </p>
+                    {msg.message && (
+                      <p className="text-xs text-pair-textMuted mt-0.5">{msg.message}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      markRead(msg.id);
+                      if (unreadMessages.length <= 1) {
+                        setShowMessageBanner(false);
+                      }
+                    }}
+                    className="text-xs text-pair-textMuted hover:text-pair-text transition-colors px-2 py-1"
+                  >
+                    知道了
+                  </button>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Quick Start — 梦幻输入框 */}
         <motion.div variants={itemVariants} className="mb-8">

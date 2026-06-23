@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DreamParticles } from '../components/DreamParticles';
 import { GlowingOrb } from '../components/DreamEffects';
 import { ArrowLeft, CheckCircle2, Circle, AlertCircle, XCircle, ChevronRight, PenLine, Save } from 'lucide-react';
+import { CelebrationEffect } from '../components/CelebrationEffect';
 import type { ResultType } from '../types';
 
 const results: { key: ResultType; label: string; color: string; icon: typeof CheckCircle2; desc: string; accent: string; gradient: string; shadow: string; iconColor: string }[] = [
@@ -75,7 +76,7 @@ export function EndPage() {
     setShowCelebration(true);
     setTimeout(() => {
       navigate('/');
-    }, 1800);
+    }, 2500);
   };
 
   const resultConfig = results.find((r) => r.key === selectedResult);
@@ -338,55 +339,11 @@ export function EndPage() {
           </AnimatePresence>
 
         {/* Celebration Overlay */}
-        <AnimatePresence>
-          {showCelebration && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md"
-            >
-              <motion.div
-                initial={{ scale: 0.5, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.5, opacity: 0, y: 20 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="bg-pair-surface/95 backdrop-blur rounded-3xl p-8 border border-pair-border/50 shadow-floating-lg text-center max-w-xs"
-              >
-                <motion.div
-                  className="w-20 h-20 rounded-full bg-gradient-to-br from-pair-success to-emerald-500 flex items-center justify-center mx-auto mb-4 shadow-glow-success"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: [0, 1.2, 1] }}
-                  transition={{ delay: 0.1, duration: 0.5, type: 'spring' }}
-                >
-                  <CheckCircle2 size={36} className="text-white" />
-                </motion.div>
-                <motion.h3
-                  className="text-lg font-bold text-pair-text mb-2"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  {selectedResult === 'completed' ? '行动完成！' :
-                   selectedResult === 'partial' ? '不错，有推进！' :
-                   selectedResult === 'failed' ? '记录了，下次继续' :
-                   '已记录'}
-                </motion.h3>
-                <motion.p
-                  className="text-sm text-pair-textMuted"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  {selectedResult === 'completed' ? '每一步都算数' :
-                   selectedResult === 'partial' ? '完成部分也是胜利' :
-                   '诚实记录比完美更重要'}
-                </motion.p>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <CelebrationEffect
+          show={showCelebration}
+          result={selectedResult}
+          onComplete={() => { /* navigated by timeout in handleFinish */ }}
+        />
         </div>
       </div>
     </div>

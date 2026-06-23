@@ -9,6 +9,7 @@ import actionRoutes from './routes/actions.js';
 import partnerRoutes from './routes/partner.js';
 import aiRoutes from './routes/ai.js';
 import reportRoutes from './routes/reports.js';
+import checkinRoutes from './routes/checkin.js';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use('/api/actions', actionRoutes);
 app.use('/api/partner', partnerRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/checkin', checkinRoutes);
 
 // Serve frontend static files in production
 const frontendDistPaths = [

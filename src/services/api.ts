@@ -167,6 +167,24 @@ class ApiClient {
     });
   }
 
+  // Partner Messages
+  async sendPartnerMessage(type: 'bomb' | 'heart' | 'sleep', message?: string) {
+    return this.request('/partner/message', {
+      method: 'POST',
+      body: JSON.stringify({ type, message }),
+    });
+  }
+
+  async getPartnerMessages() {
+    return this.request('/partner/messages');
+  }
+
+  async markMessageRead(id: string) {
+    return this.request(`/partner/messages/${id}/read`, {
+      method: 'PATCH',
+    });
+  }
+
   async deleteAction(id: string) {
     return this.request(`/actions/${id}`, {
       method: 'DELETE',
@@ -237,6 +255,17 @@ class ApiClient {
     return this.request(`/reports/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
+    });
+  }
+
+  // Check-in
+  async getCheckInStatus() {
+    return this.request('/checkin/status');
+  }
+
+  async doCheckIn() {
+    return this.request('/checkin', {
+      method: 'POST',
     });
   }
 

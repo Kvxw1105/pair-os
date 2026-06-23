@@ -104,6 +104,30 @@ model Partnership {
   @@map("partnerships")
 }
 
+model CheckIn {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  date      String   // YYYY-MM-DD format
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, date])
+  @@map("check_ins")
+}
+
+model PartnerMessage {
+  id         String   @id @default(cuid())
+  senderId   String   @map("sender_id")
+  receiverId String   @map("receiver_id")
+  type       String   // bomb, heart, sleep
+  message    String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([receiverId, read])
+  @@index([createdAt])
+  @@map("partner_messages")
+}
+
 model Reminder {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")

@@ -61,6 +61,8 @@ function getInitialState(): AppState {
     reminders: [],
     isOnboarding: true,
     theme: 'system',
+    checkIn: null,
+    partnerMessages: [],
   };
 }
 
@@ -249,6 +251,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_ACTION_VISIBILITY': return next({ actions: state.actions.map((a) => a.id === action.actionId ? { ...a, visibility: action.visibility, updatedAt: now() } : a) });
     case 'DELETE_ACTION': return next({ actions: state.actions.filter((a) => a.id !== action.actionId) });
     case 'SET_THEME': return next({ theme: action.theme });
+    case 'SET_CHECK_IN': return next({ checkIn: action.checkIn });
+    case 'DO_CHECK_IN': return next({ checkIn: action.checkIn });
+    case 'SET_PARTNER_MESSAGES': return next({ partnerMessages: action.messages });
+    case 'ADD_PARTNER_MESSAGE': return next({ partnerMessages: [action.message, ...state.partnerMessages] });
+    case 'MARK_MESSAGE_READ': return next({ partnerMessages: state.partnerMessages.map((m) => m.id === action.messageId ? { ...m, read: true } : m) });
 
     default: return state;
   }
@@ -312,6 +319,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_PARTNER', partner: data.partner });
       }
     }).catch(() => { /* fallback to local */ });
+
+    // Sync check-in status
+    api.getCheckInStatus().then((data) => {
+      dispatch({
+        type: 'SET_CHECK_IN',
+        checkIn: {
+          checkedInToday: data.checkedInToday,
+          streak: data.streak,
+          todayDate: data.todayDate,
+        },
+      });
+    }).catch(() => { /* fallback to local */ });
   }, []);
 
   // Apply theme to document
@@ -323,6 +342,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       html.setAttribute('data-theme', state.theme);
     }
   }, [state.theme]);
+
+  // Poll partner messages every 30 seconds
+  useEffect(() => {
+    if (!api.isAuthenticated()) return;
+
+    const pollMessages = async () => {
+      try {
+        const data = await api.getPartnerMessages();
+        if (data.messages && data.messages.length > 0) {
+          const messages = data.messages.map((m: any) => ({
+            ...m,
+            createdAt: new Date(m.createdAt).getTime(),
+          }));
+          dispatch({ type: 'SET_PARTNER_MESSAGES', messages: [...messages, ...state.partnerMessages.filter((pm) => !messages.find((m: any) => m.id === pm.id))] });
+        }
+      } catch { /* ignore */ }
+    };
+
+    pollMessages();
+    const interval = setInterval(pollMessages, 30000);
+    return () => clearInterval(interval);
+  }, [api.isAuthenticated(), state.partnerMessages.length]);
 
   return (
     <AppContext.Provider value={{ state, dispatch, api }}>
@@ -534,6 +575,101 @@ export function useActionTimer(actionId: string | null) {
   }, [action]);
 
   return { action, getElapsed };
+}
+
+export function useCheckIn() {
+  const state = useAppState();
+  const dispatch = useAppDispatch();
+  const api = useApi();
+
+  const doCheckIn = useCallback(async () => {
+    if (!api.isAuthenticated()) {
+      // Local mode: simulate check-in
+      const today = new Date().toISOString().split('T')[0];
+      dispatch({
+        type: 'DO_CHECK_IN',
+        checkIn: {
+          checkedInToday: true,
+          streak: (state.checkIn?.streak || 0) + 1,
+          todayDate: today,
+        },
+      });
+      return { checkedIn: true, streak: (state.checkIn?.streak || 0) + 1 };
+    }
+    try {
+      const result = await api.doCheckIn();
+      dispatch({
+        type: 'DO_CHECK_IN',
+        checkIn: {
+          checkedInToday: true,
+          streak: result.streak,
+          todayDate: result.date,
+        },
+      });
+      return { checkedIn: true, streak: result.streak };
+    } catch (err) {
+      console.error('Check-in failed:', err);
+      return { checkedIn: false, streak: state.checkIn?.streak || 0 };
+    }
+  }, [api, dispatch, state.checkIn]);
+
+  return {
+    checkIn: state.checkIn,
+    doCheckIn,
+  };
+}
+
+export function usePartnerMessages() {
+  const state = useAppState();
+  const dispatch = useAppDispatch();
+  const api = useApi();
+
+  const sendMessage = useCallback(async (type: 'bomb' | 'heart' | 'sleep', message?: string) => {
+    if (!api.isAuthenticated()) {
+      // Local mode: simulate
+      const newMsg = {
+        id: generateId(),
+        senderId: state.profile?.id || 'me',
+        receiverId: state.partner?.id || 'partner',
+        type,
+        message: message || null,
+        read: false,
+        createdAt: Date.now(),
+      };
+      dispatch({ type: 'ADD_PARTNER_MESSAGE', message: newMsg });
+      return { success: true };
+    }
+    try {
+      const result = await api.sendPartnerMessage(type, message);
+      dispatch({ type: 'ADD_PARTNER_MESSAGE', message: { ...result.message, createdAt: new Date(result.message.createdAt).getTime() } });
+      return { success: true };
+    } catch (err) {
+      console.error('Send message failed:', err);
+      return { success: false };
+    }
+  }, [api, dispatch, state.profile, state.partner]);
+
+  const markRead = useCallback(async (messageId: string) => {
+    if (!api.isAuthenticated()) {
+      dispatch({ type: 'MARK_MESSAGE_READ', messageId });
+      return;
+    }
+    try {
+      await api.markMessageRead(messageId);
+      dispatch({ type: 'MARK_MESSAGE_READ', messageId });
+    } catch (err) {
+      console.error('Mark read failed:', err);
+    }
+  }, [api, dispatch]);
+
+  const unreadMessages = state.partnerMessages.filter((m) => !m.read);
+
+  return {
+    messages: state.partnerMessages,
+    unreadMessages,
+    sendMessage,
+    markRead,
+  };
 }
 
 export { generateId };

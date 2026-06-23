@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppState, useAppDispatch, useApi } from '../stores/AppStore';
+import { useAppState, useAppDispatch, useApi, usePartnerMessages } from '../stores/AppStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Heart, Shield, Target, User, ChevronRight, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Heart, Shield, Target, User, ChevronRight, Copy, Check, Bomb, Moon, Send } from 'lucide-react';
 
 export function PartnerPage() {
   const navigate = useNavigate();
@@ -12,6 +12,8 @@ export function PartnerPage() {
   const partner = state.partner;
   const [copied, setCopied] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const { sendMessage } = usePartnerMessages();
 
   const sharedActions = state.actions.filter(
     (a) => a.userId === state.profile?.id && (a.visibility === 'visible' || a.visibility === 'needs_verification')
@@ -66,6 +68,69 @@ export function PartnerPage() {
                   <p className="text-sm font-bold text-pair-text">{partner.currentActionTitle}</p>
                 </div>
               )}
+            </div>
+
+            {/* Send Message */}
+            <div className="bg-pair-surface rounded-3xl p-5 border border-pair-border/50 shadow-card card-shine mb-6">
+              <h3 className="text-sm font-bold text-pair-text mb-4 tracking-tight">给 {partner.name} 发条消息</h3>
+              <div className="flex gap-2 mb-4">
+                <motion.button
+                  onClick={() => sendMessage('bomb')}
+                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-200/50 text-red-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <Bomb size={16} />
+                  扔炸弹
+                </motion.button>
+                <motion.button
+                  onClick={() => sendMessage('heart')}
+                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200/50 text-rose-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <Heart size={16} />
+                  送爱心
+                </motion.button>
+                <motion.button
+                  onClick={() => sendMessage('sleep')}
+                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/50 text-indigo-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <Moon size={16} />
+                  提醒休息
+                </motion.button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && messageText.trim()) {
+                      sendMessage('heart', messageText.trim());
+                      setMessageText('');
+                    }
+                  }}
+                  placeholder={`想对 ${partner.name} 说什么...`}
+                  className="flex-1 px-4 py-3 bg-pair-surfaceAlt/60 rounded-2xl text-sm text-pair-text border border-pair-border/40 focus:border-pair-primary focus:outline-none transition-colors"
+                />
+                <motion.button
+                  onClick={() => {
+                    if (messageText.trim()) {
+                      sendMessage('heart', messageText.trim());
+                      setMessageText('');
+                    }
+                  }}
+                  disabled={!messageText.trim()}
+                  className="px-4 py-3 bg-pair-primary text-white rounded-2xl flex items-center gap-1.5 shadow-glow-primary disabled:opacity-40 disabled:shadow-none transition-all"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Send size={16} />
+                </motion.button>
+              </div>
             </div>
 
             {/* Shared Stats */}

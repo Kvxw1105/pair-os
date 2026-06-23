@@ -106,6 +106,16 @@ export interface Partner {
   lastActiveAt: number;
 }
 
+export interface PartnerMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  type: 'bomb' | 'heart' | 'sleep';
+  message: string | null;
+  read: boolean;
+  createdAt: number;
+}
+
 export interface Reminder {
   id: string;
   actionId: string | null;
@@ -146,6 +156,12 @@ export interface DailyReport {
   updatedAt: string;
 }
 
+export interface CheckInState {
+  checkedInToday: boolean;
+  streak: number;
+  todayDate: string;
+}
+
 export interface AppState {
   profile: UserProfile | null;
   actions: ActionItem[];
@@ -155,6 +171,8 @@ export interface AppState {
   reminders: Reminder[];
   isOnboarding: boolean;
   theme: 'light' | 'dark' | 'system';
+  checkIn: CheckInState | null;
+  partnerMessages: PartnerMessage[];
 }
 
 export type AppAction =
@@ -182,3 +200,8 @@ export type AppAction =
   | { type: 'UPDATE_ACTION_VISIBILITY'; actionId: string; visibility: Visibility }
   | { type: 'DELETE_ACTION'; actionId: string }
   | { type: 'SET_THEME'; theme: 'light' | 'dark' | 'system' }
+  | { type: 'SET_CHECK_IN'; checkIn: CheckInState }
+  | { type: 'DO_CHECK_IN'; checkIn: CheckInState }
+  | { type: 'SET_PARTNER_MESSAGES'; messages: PartnerMessage[] }
+  | { type: 'ADD_PARTNER_MESSAGE'; message: PartnerMessage }
+  | { type: 'MARK_MESSAGE_READ'; messageId: string }
