@@ -48,6 +48,9 @@ function getInitialState(): AppState {
       const parsed = JSON.parse(saved) as AppState;
       if (parsed.profile && parsed.actions) {
         if (!parsed.theme) parsed.theme = 'system';
+        // Backward compatibility: add new fields if missing from old state
+        if (!parsed.checkIn) parsed.checkIn = null;
+        if (!parsed.partnerMessages) parsed.partnerMessages = [];
         return parsed;
       }
     }
