@@ -10,14 +10,13 @@ services:
       cd server
       npm install
       npx prisma generate --schema=./prisma/schema.prisma
-      npx prisma db push --accept-data-loss --schema=./prisma/schema.prisma
       npm run build
-    startCommand: cd server && NODE_ENV=production node dist/index.js
+    startCommand: cd server && npx prisma db push --accept-data-loss --schema=./prisma/schema.prisma && NODE_ENV=production node dist/index.js
     envVars:
       - key: PORT
         value: 10000
       - key: DATABASE_URL
-        value: "postgresql://user:pass@host:5432/db"  # Replace with Neon connection string after signup
+        value: "postgresql://user:pass@host:5432/db"
       - key: JWT_SECRET
         generateValue: true
     healthCheckPath: /health

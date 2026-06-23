@@ -382,17 +382,17 @@ router.post('/insight', async (req, res) => {
 
     const blockedReasons = actions
       .filter((a: any) => a.blockedReason)
-      .map((a: any) => a.blockedReason)
+      .map((a: any) => a.blockedReason as string)
       .reduce((acc: Record<string, number>, r: string) => { acc[r] = (acc[r] || 0) + 1; return acc; }, {} as Record<string, number>);
     const topBlockedReason = Object.entries(blockedReasons)
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+      .sort((a: [string, number], b: [string, number]) => b[1] - a[1])[0]?.[0] || '';
 
     const awayReasons = actions
       .filter((a: any) => a.awayReason)
-      .map((a: any) => a.awayReason)
+      .map((a: any) => a.awayReason as string)
       .reduce((acc: Record<string, number>, r: string) => { acc[r] = (acc[r] || 0) + 1; return acc; }, {} as Record<string, number>);
     const topAwayReason = Object.entries(awayReasons)
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+      .sort((a: [string, number], b: [string, number]) => b[1] - a[1])[0]?.[0] || '';
 
     // Hourly distribution
     const hourCounts: Record<number, number> = {};
