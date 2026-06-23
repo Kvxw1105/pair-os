@@ -676,7 +676,7 @@ export function TodayPage() {
                 >
                   <Target size={16} strokeWidth={2.5} />
                 </motion.div>
-                <span className="relative z-10">邀请小楠一起开始 10 分钟</span>
+                <span className="relative z-10">邀请小K一起开始 10 分钟</span>
               </motion.button>
             </motion.div>
           )}

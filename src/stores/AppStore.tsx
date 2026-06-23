@@ -31,7 +31,7 @@ export const createDefaultProfile = (): UserProfile => ({
 
 const defaultPartner: Partner = {
   id: 'partner_1',
-  name: '小楠',
+  name: '小K',
   avatar: null,
   status: 'active',
   currentActionTitle: '阅读《深度学习》第3章',
