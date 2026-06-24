@@ -712,6 +712,11 @@
   border-radius: inherit;
 }
 
+/* Fix input/textarea text color — inherit from parent so dark mode works */
+input, textarea {
+  color: inherit;
+}
+
 /* Skip to main content link */
 .skip-link {
   position: absolute;
