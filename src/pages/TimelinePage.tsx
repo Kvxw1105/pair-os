@@ -24,7 +24,11 @@ export function TimelinePage() {
   const api = useApi();
   const actionDispatch = useActionDispatch();
   const myActions = state.actions.filter((a) => a.userId === state.profile?.id);
-  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [expandedDate, setExpandedDate] = useState<string | null>(() => {
+    // Default expand the most recent date
+    const sorted = [...myActions].sort((a, b) => b.createdAt - a.createdAt);
+    return sorted.length > 0 ? new Date(sorted[0].createdAt).toDateString() : null;
+  });
   const [insight, setInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState(false);
@@ -346,16 +350,21 @@ export function TimelinePage() {
                         {actions.map((action) => (
                           <motion.div
                             key={action.id}
-                            className={`w-2.5 h-2.5 rounded-full ${
+                            className="group relative"
+                            whileHover={{ scale: 1.8 }}
+                          >
+                            <div className={`w-2.5 h-2.5 rounded-full ${
                               action.state === 'completed' ? 'bg-gradient-to-br from-pair-success to-emerald-400 shadow-glow-success' :
                               action.state === 'partial' ? 'bg-gradient-to-br from-pair-accent to-amber-300 shadow-glow-warn' :
                               action.state === 'failed' || action.state === 'cancelled' ? 'bg-pair-textMuted' :
                               action.state === 'active' ? 'bg-gradient-to-br from-pair-success to-emerald-400 shadow-glow-success' :
                               action.state === 'away' ? 'bg-gradient-to-br from-pair-accent to-amber-300 shadow-glow-warn' :
                               'bg-gradient-to-br from-pair-stuck to-violet-400 shadow-glow-stuck'
-                            }`}
-                            whileHover={{ scale: 1.5 }}
-                          />
+                            }`} />
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-pair-surface border border-pair-border/50 rounded-lg text-[10px] text-pair-text whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-card">
+                              {action.title}
+                            </div>
+                          </motion.div>
                         ))}
                       </div>
                     )}

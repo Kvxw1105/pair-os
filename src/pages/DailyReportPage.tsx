@@ -20,6 +20,7 @@ export function DailyReportPage() {
   const api = useApi();
   const profile = state.profile;
   const partner = state.partners[0] || state.guidePartner || null;
+  const hasRealPartner = state.partners.length > 0;
 
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();
@@ -31,19 +32,25 @@ export function DailyReportPage() {
 
   // Editable fields
   const [mySummary, setMySummary] = useState('');
-  const [partnerSummary, setPartnerSummary] = useState('');
   const [mutualMessage, setMutualMessage] = useState('');
 
+  // Build single-person report from local actions when no backend report exists
+  const todayActions = state.actions.filter((a) => {
+    const actionDate = new Date(a.createdAt).toISOString().slice(0, 10);
+    return actionDate === selectedDate && a.userId === profile?.id;
+  });
+  const hasLocalActions = todayActions.length > 0;
+
   const fetchReport = useCallback(async (date: string) => {
-    if (!api.isAuthenticated()) return;
     setLoading(true);
     try {
-      const res = await api.getReport(date);
-      if (res.report) {
-        setReport(res.report);
-        setMySummary(res.report.user1Summary || '');
-        setPartnerSummary(res.report.user2Summary || '');
-        setMutualMessage(res.report.mutualMessage || '');
+      if (api.isAuthenticated()) {
+        const res = await api.getReport(date);
+        if (res.report) {
+          setReport(res.report);
+          setMySummary(res.report.user1Summary || '');
+          setMutualMessage(res.report.mutualMessage || '');
+        }
       }
     } catch (err) {
       console.error('Fetch report failed:', err);
@@ -93,12 +100,17 @@ export function DailyReportPage() {
 
   const isToday = selectedDate === new Date().toISOString().slice(0, 10);
   const isUser1 = report ? report.user1Id === profile?.id : true;
-  const myActions = report ? (isUser1 ? report.user1Actions : report.user2Actions) : [];
-  const partnerActions = report ? (isUser1 ? report.user2Actions : report.user1Actions) : [];
-  const myDuration = report ? (isUser1 ? report.user1Duration : report.user2Duration) : 0;
-  const partnerDuration = report ? (isUser1 ? report.user2Duration : report.user1Duration) : 0;
-  const myCompleted = myActions.filter(a => a.state === 'completed' || a.state === 'partial').length;
-  const partnerCompleted = partnerActions.filter(a => a.state === 'completed' || a.state === 'partial').length;
+  const myActions = report ? (isUser1 ? report.user1Actions : report.user2Actions) : todayActions.map((a) => ({
+    id: a.id,
+    title: a.title,
+    state: a.state,
+    duration: a.totalDurationMs,
+  }));
+  const partnerActions = report && hasRealPartner ? (isUser1 ? report.user2Actions : report.user1Actions) : [];
+  const myDuration = report ? (isUser1 ? report.user1Duration : report.user2Duration) : todayActions.reduce((s, a) => s + a.totalDurationMs, 0);
+  const partnerDuration = report && hasRealPartner ? (isUser1 ? report.user2Duration : report.user1Duration) : 0;
+  const myCompleted = myActions.filter((a) => a.state === 'completed' || a.state === 'partial').length;
+  const partnerCompleted = partnerActions.filter((a) => a.state === 'completed' || a.state === 'partial').length;
   const myTotal = myActions.length;
   const partnerTotal = partnerActions.length;
 
@@ -180,15 +192,15 @@ export function DailyReportPage() {
         </motion.div>
 
         <div className="px-5 pb-8">
-          {loading && !report ? (
+          {loading && !report && !hasLocalActions ? (
             <div className="text-center py-16">
               <Loader2 size={28} className="animate-spin text-pair-accent/50 mx-auto mb-3" />
               <p className="text-sm text-pair-textMuted">正在生成日报...</p>
             </div>
-          ) : report ? (
+          ) : myTotal > 0 ? (
             <div className="space-y-6">
-              {/* Two-column layout */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Column layout: 1 col for solo, 2 cols for duo */}
+              <div className={`grid grid-cols-1 ${hasRealPartner ? 'md:grid-cols-2' : ''} gap-4`}>
                 {/* My Column */}
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
@@ -257,73 +269,75 @@ export function DailyReportPage() {
                   </InkWashCard>
                 </motion.div>
 
-                {/* Partner Column */}
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] as const }}
-                >
-                  <InkWashCard className="bg-pair-surface/80 backdrop-blur rounded-3xl border border-pair-border/40 shadow-card hover:shadow-card-hover transition-all duration-500 p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pair-accentLight/50 to-pair-warnLight/40 flex items-center justify-center border border-pair-accent/15">
-                        <span className="text-sm font-bold text-pair-accent">{partner?.name?.charAt(0) || 'TA'}</span>
+                {/* Partner Column — only if has real partner */}
+                {hasRealPartner && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] as const }}
+                  >
+                    <InkWashCard className="bg-pair-surface/80 backdrop-blur rounded-3xl border border-pair-border/40 shadow-card hover:shadow-card-hover transition-all duration-500 p-5">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pair-accentLight/50 to-pair-warnLight/40 flex items-center justify-center border border-pair-accent/15">
+                          <span className="text-sm font-bold text-pair-accent">{partner?.name?.charAt(0) || 'TA'}</span>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-pair-text">{partner?.name || '伙伴'}</h3>
+                          <p className="text-[10px] text-pair-textMuted/70">{partnerTotal} 个行动 · {formatDuration(partnerDuration)}</p>
+                        </div>
+                        <div className="ml-auto flex items-center gap-1 text-[10px] text-pair-success">
+                          <CheckCircle2 size={10} />
+                          <span>{partnerCompleted}/{partnerTotal}</span>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-pair-text">{partner?.name || '伙伴'}</h3>
-                        <p className="text-[10px] text-pair-textMuted/70">{partnerTotal} 个行动 · {formatDuration(partnerDuration)}</p>
-                      </div>
-                      <div className="ml-auto flex items-center gap-1 text-[10px] text-pair-success">
-                        <CheckCircle2 size={10} />
-                        <span>{partnerCompleted}/{partnerTotal}</span>
-                      </div>
-                    </div>
 
-                    <OrientalDivider className="my-3" />
+                      <OrientalDivider className="my-3" />
 
-                    {/* Partner actions */}
-                    <div className="space-y-2 mb-4">
-                      {partnerActions.length === 0 ? (
-                        <p className="text-xs text-pair-textMuted/60 text-center py-4">伙伴今天还没有行动</p>
-                      ) : (
-                        partnerActions.map((action, i) => {
-                          return (
-                            <motion.div
-                              key={action.id}
-                              className="flex items-center gap-2.5 py-2 px-1 rounded-xl hover:bg-pair-surfaceAlt/50 transition-colors"
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: i * 0.05 }}
-                            >
-                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                action.state === 'completed' ? 'bg-gradient-to-br from-pair-success to-emerald-400 shadow-glow-success' :
-                                action.state === 'partial' ? 'bg-gradient-to-br from-pair-accent to-amber-300' :
-                                action.state === 'failed' ? 'bg-pair-textMuted' :
-                                'bg-gradient-to-br from-pair-accent to-amber-300'
-                              }`} />
-                              <span className="text-sm text-pair-text flex-1 truncate">{action.title}</span>
-                              <span className="text-[10px] text-pair-textMuted/70">{formatDuration(action.duration)}</span>
-                            </motion.div>
-                          );
-                        })
-                      )}
-                    </div>
-
-                    {/* Partner summary (read-only) */}
-                    <div className="mb-1">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Sparkles size={12} className="text-pair-accent/60" />
-                        <span className="text-[11px] font-semibold text-pair-textMuted/80">{partner?.name || '伙伴'}的小结</span>
+                      {/* Partner actions */}
+                      <div className="space-y-2 mb-4">
+                        {partnerActions.length === 0 ? (
+                          <p className="text-xs text-pair-textMuted/60 text-center py-4">伙伴今天还没有行动</p>
+                        ) : (
+                          partnerActions.map((action, i) => {
+                            return (
+                              <motion.div
+                                key={action.id}
+                                className="flex items-center gap-2.5 py-2 px-1 rounded-xl hover:bg-pair-surfaceAlt/50 transition-colors"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                              >
+                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                  action.state === 'completed' ? 'bg-gradient-to-br from-pair-success to-emerald-400 shadow-glow-success' :
+                                  action.state === 'partial' ? 'bg-gradient-to-br from-pair-accent to-amber-300' :
+                                  action.state === 'failed' ? 'bg-pair-textMuted' :
+                                  'bg-gradient-to-br from-pair-accent to-amber-300'
+                                }`} />
+                                <span className="text-sm text-pair-text flex-1 truncate">{action.title}</span>
+                                <span className="text-[10px] text-pair-textMuted/70">{formatDuration(action.duration)}</span>
+                              </motion.div>
+                            );
+                          })
+                        )}
                       </div>
-                      {partnerSummary ? (
-                        <BambooBorder>
-                          <p className="text-sm text-pair-textSecondary leading-relaxed pl-2">{partnerSummary}</p>
-                        </BambooBorder>
-                      ) : (
-                        <p className="text-xs text-pair-textMuted/50 text-center py-4">伙伴还没有写小结</p>
-                      )}
-                    </div>
-                  </InkWashCard>
-                </motion.div>
+
+                      {/* Partner summary (read-only) */}
+                      <div className="mb-1">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Sparkles size={12} className="text-pair-accent/60" />
+                          <span className="text-[11px] font-semibold text-pair-textMuted/80">{partner?.name || '伙伴'}的小结</span>
+                        </div>
+                        {report?.user2Summary ? (
+                          <BambooBorder>
+                            <p className="text-sm text-pair-textSecondary leading-relaxed pl-2">{report.user2Summary}</p>
+                          </BambooBorder>
+                        ) : (
+                          <p className="text-xs text-pair-textMuted/50 text-center py-4">伙伴还没有写小结</p>
+                        )}
+                      </div>
+                    </InkWashCard>
+                  </motion.div>
+                )}
               </div>
 
               {/* Combined Stats */}
@@ -350,48 +364,51 @@ export function DailyReportPage() {
                 </div>
               </motion.div>
 
-              {/* Mutual Message */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.4 }}
-              >
-                <InkWashCard className="bg-pair-surface/80 backdrop-blur rounded-3xl border border-pair-border/40 shadow-card p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <MessageCircle size={14} className="text-pair-accent/70" />
-                    <h3 className="text-sm font-semibold text-pair-text">互相留言</h3>
-                    <SealMark text="印" size="sm" variant="square" />
-                  </div>
-                  <textarea
-                    value={mutualMessage}
-                    onChange={(e) => setMutualMessage(e.target.value)}
-                    placeholder="给彼此留一句话，鼓励、感谢或分享..."
-                    rows={2}
-                    className="w-full px-3 py-2.5 bg-pair-surfaceAlt/50 rounded-2xl border border-pair-border/40 text-sm text-pair-text focus:border-pair-accent/30 focus:outline-none focus:ring-2 focus:ring-pair-accent/8 resize-none transition-all hover:bg-pair-surfaceAlt/70 mb-3"
-                  />
-                  <div className="flex justify-end">
-                    <motion.button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="px-4 py-2.5 bg-gradient-to-r from-pair-primary to-pair-primaryMuted text-white rounded-2xl text-sm font-medium flex items-center gap-1.5 shadow-glow-primary hover:shadow-glow-primary transition-all disabled:opacity-50"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
-                    >
-                      {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                      {saving ? '保存中...' : '保存'}
-                    </motion.button>
-                  </div>
-                </InkWashCard>
-              </motion.div>
+              {/* Mutual Message — only if has real partner */}
+              {hasRealPartner && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.4 }}
+                >
+                  <InkWashCard className="bg-pair-surface/80 backdrop-blur rounded-3xl border border-pair-border/40 shadow-card p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MessageCircle size={14} className="text-pair-accent/70" />
+                      <h3 className="text-sm font-semibold text-pair-text">互相留言</h3>
+                      <SealMark text="印" size="sm" variant="square" />
+                    </div>
+                    <textarea
+                      value={mutualMessage}
+                      onChange={(e) => setMutualMessage(e.target.value)}
+                      placeholder="给彼此留一句话，鼓励、感谢或分享..."
+                      rows={2}
+                      className="w-full px-3 py-2.5 bg-pair-surfaceAlt/50 rounded-2xl border border-pair-border/40 text-sm text-pair-text focus:border-pair-accent/30 focus:outline-none focus:ring-2 focus:ring-pair-accent/8 resize-none transition-all hover:bg-pair-surfaceAlt/70 mb-3"
+                    />
+                    <div className="flex justify-end">
+                      <motion.button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="px-4 py-2.5 bg-gradient-to-r from-pair-primary to-pair-primaryMuted text-white rounded-2xl text-sm font-medium flex items-center gap-1.5 shadow-glow-primary hover:shadow-glow-primary transition-all disabled:opacity-50"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.97 }}
+                      >
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        {saving ? '保存中...' : '保存'}
+                      </motion.button>
+                    </div>
+                  </InkWashCard>
+                </motion.div>
+              )}
             </div>
           ) : (
             <div className="text-center py-16">
-              <p className="text-sm text-pair-textSecondary">需要先建立伙伴关系才能查看日报</p>
+              <p className="text-sm text-pair-textSecondary">今天还没有行动记录</p>
+              <p className="text-xs text-pair-textMuted/60 mt-2">完成一些行动后再来看日报吧</p>
               <button
-                onClick={() => navigate('/partner')}
+                onClick={() => navigate('/')}
                 className="mt-4 px-5 py-2.5 bg-pair-primary text-white rounded-2xl text-sm font-medium"
               >
-                去建立伙伴关系
+                去开始行动
               </button>
             </div>
           )}
