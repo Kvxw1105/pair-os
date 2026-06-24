@@ -168,13 +168,14 @@ export interface AppState {
   profile: UserProfile | null;
   actions: ActionItem[];
   events: ActionEvent[];
-  partner: Partner | null;
+  partners: Partner[];
   partnerPending: boolean;
   reminders: Reminder[];
   isOnboarding: boolean;
   theme: 'light' | 'dark' | 'system';
   checkIn: CheckInState | null;
   partnerMessages: PartnerMessage[];
+  guidePartner: Partner | null; // Demo guide partner (小K), not a real partnership
 }
 
 export type AppAction =
@@ -185,16 +186,16 @@ export type AppAction =
   | { type: 'LOGIN_SUCCESS'; token: string; user: { id: string; name: string; email: string; avatar?: string | null; bio?: string | null } }
   | { type: 'LOGOUT' }
   | { type: 'SYNC_ACTIONS'; actions: ActionItem[] }
-  | { type: 'SYNC_PARTNER'; partner: Partner }
+  | { type: 'SYNC_PARTNERS'; partners: Partner[] }
   | { type: 'START_ACTION'; title: string; visibility: Visibility }
   | { type: 'AWAY_ACTION'; actionId: string; reason: AwayReason }
   | { type: 'RESUME_ACTION'; actionId: string }
   | { type: 'BLOCK_ACTION'; actionId: string; reason: BlockedReason }
   | { type: 'UNBLOCK_ACTION'; actionId: string }
   | { type: 'END_ACTION'; actionId: string; result: ResultType; completionPercent: number | null; note: string }
-  | { type: 'SET_PARTNER'; partner: Partner }
+  | { type: 'SET_PARTNERS'; partners: Partner[] }
   | { type: 'INVITE_PARTNER' }
-  | { type: 'REMOVE_PARTNER' }
+  | { type: 'REMOVE_PARTNER'; partnerId?: string }
   | { type: 'ADD_REMINDER'; reminder: Reminder }
   | { type: 'CONFIRM_REMINDER'; reminderId: string }
   | { type: 'DISMISS_REMINDER'; reminderId: string }

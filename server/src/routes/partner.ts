@@ -11,14 +11,16 @@ const inviteSchema = z.object({
   partnerEmail: z.string().email(),
 });
 
+// Get all partners for current user
 router.get('/status', async (req: AuthRequest, res) => {
   try {
-    const partnership = await prisma.partnership.findFirst({
+    const partnerships = await prisma.partnership.findMany({
       where: {
         OR: [
           { userId: req.user!.id },
           { partnerId: req.user!.id },
         ],
+        status: 'active',
       },
       include: {
         user: { select: { id: true, name: true, email: true, avatar: true, bio: true } },
@@ -26,32 +28,27 @@ router.get('/status', async (req: AuthRequest, res) => {
       },
     });
 
-    if (!partnership) {
-      res.json({ partner: null });
-      return;
-    }
+    const partners = await Promise.all(partnerships.map(async (p) => {
+      const isUser = p.userId === req.user!.id;
+      const partner = isUser ? p.partner : p.user;
 
-    const isUser = partnership.userId === req.user!.id;
-    const partner = isUser ? partnership.partner : partnership.user;
+      const activeAction = await prisma.action.findFirst({
+        where: { userId: partner.id, state: 'active' },
+        orderBy: { startedAt: 'desc' },
+      });
 
-    // Get partner's current active action
-    const activeAction = await prisma.action.findFirst({
-      where: { userId: partner.id, state: 'active' },
-      orderBy: { startedAt: 'desc' },
-    });
-
-    res.json({
-      partner: {
+      return {
         id: partner.id,
         name: partner.name,
         avatar: partner.avatar,
         bio: partner.bio,
-        status: activeAction ? 'active' : 'idle',
+        status: activeAction ? 'active' : 'idle' as const,
         currentActionTitle: activeAction?.title || null,
         lastActiveAt: activeAction?.startedAt?.getTime() || null,
-      },
-      partnershipStatus: partnership.status,
-    });
+      };
+    }));
+
+    res.json({ partners });
   } catch (err) {
     console.error('Get partner status error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -70,20 +67,9 @@ router.get('/invite-link', async (req: AuthRequest, res) => {
       return;
     }
 
-    // Check if user already has a partner
-    const existing = await prisma.partnership.findFirst({
-      where: {
-        OR: [
-          { userId: req.user!.id },
-          { partnerId: req.user!.id },
-        ],
-      },
-    });
-
     res.json({
       inviteCode: user.id,
       inviterName: user.name,
-      hasPartner: !!existing,
     });
   } catch (err) {
     console.error('Get invite link error:', err);
@@ -101,7 +87,6 @@ router.post('/accept-invite', async (req, res) => {
       name: z.string().min(1).max(50),
     }).parse(req.body);
 
-    // Find inviter
     const inviter = await prisma.user.findUnique({
       where: { id: inviteCode },
     });
@@ -110,21 +95,6 @@ router.post('/accept-invite', async (req, res) => {
       return;
     }
 
-    // Check if inviter already has a partner
-    const inviterPartner = await prisma.partnership.findFirst({
-      where: {
-        OR: [
-          { userId: inviter.id },
-          { partnerId: inviter.id },
-        ],
-      },
-    });
-    if (inviterPartner) {
-      res.status(400).json({ error: 'Inviter already has a partner' });
-      return;
-    }
-
-    // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -133,7 +103,6 @@ router.post('/accept-invite', async (req, res) => {
       return;
     }
 
-    // Create new user
     const bcrypt = await import('bcryptjs');
     const passwordHash = await bcrypt.hash(password, 10);
     const newUser = await prisma.user.create({
@@ -145,7 +114,6 @@ router.post('/accept-invite', async (req, res) => {
       },
     });
 
-    // Create partnership
     await prisma.partnership.create({
       data: {
         userId: inviter.id,
@@ -154,7 +122,6 @@ router.post('/accept-invite', async (req, res) => {
       },
     });
 
-    // Generate token for auto-login
     const jwt = await import('jsonwebtoken');
     const token = jwt.sign(
       { userId: newUser.id, email: newUser.email },
@@ -190,20 +157,10 @@ router.get('/invite-info/:inviteCode', async (req, res) => {
       return;
     }
 
-    // Check if inviter already has a partner
-    const hasPartner = await prisma.partnership.findFirst({
-      where: {
-        OR: [
-          { userId: inviter.id },
-          { partnerId: inviter.id },
-        ],
-      },
-    });
-
     res.json({
       inviterName: inviter.name,
       inviterId: inviter.id,
-      available: !hasPartner,
+      available: true,
     });
   } catch (err) {
     console.error('Get invite info error:', err);
@@ -228,16 +185,17 @@ router.post('/invite', async (req: AuthRequest, res) => {
       return;
     }
 
+    // Check if already partnered with this specific person
     const existing = await prisma.partnership.findFirst({
       where: {
         OR: [
-          { userId: req.user!.id },
-          { partnerId: req.user!.id },
+          { userId: req.user!.id, partnerId: partner.id },
+          { userId: partner.id, partnerId: req.user!.id },
         ],
       },
     });
     if (existing) {
-      res.status(400).json({ error: 'You already have a partner' });
+      res.status(400).json({ error: 'You are already partnered with this user' });
       return;
     }
 
@@ -260,13 +218,14 @@ router.post('/invite', async (req: AuthRequest, res) => {
   }
 });
 
-router.delete('/', async (req: AuthRequest, res) => {
+router.delete('/:partnerId', async (req: AuthRequest, res) => {
   try {
+    const { partnerId } = req.params;
     await prisma.partnership.deleteMany({
       where: {
         OR: [
-          { userId: req.user!.id },
-          { partnerId: req.user!.id },
+          { userId: req.user!.id, partnerId },
+          { userId: partnerId, partnerId: req.user!.id },
         ],
       },
     });
@@ -281,35 +240,41 @@ router.delete('/', async (req: AuthRequest, res) => {
 const messageSchema = z.object({
   type: z.enum(['bomb', 'heart', 'sleep']),
   message: z.string().max(200).optional(),
+  receiverId: z.string().optional(),
 });
 
 router.post('/message', async (req: AuthRequest, res) => {
   try {
-    const { type, message } = messageSchema.parse(req.body);
+    const { type, message, receiverId } = messageSchema.parse(req.body);
     const userId = req.user!.id;
 
-    // Find partnership
-    const partnership = await prisma.partnership.findFirst({
-      where: {
-        OR: [
-          { userId },
-          { partnerId: userId },
-        ],
-        status: 'active',
-      },
-    });
+    let targetReceiverId: string;
+    if (receiverId) {
+      targetReceiverId = receiverId;
+    } else {
+      // Find first active partnership
+      const partnership = await prisma.partnership.findFirst({
+        where: {
+          OR: [
+            { userId },
+            { partnerId: userId },
+          ],
+          status: 'active',
+        },
+      });
 
-    if (!partnership) {
-      res.status(400).json({ error: 'No active partner' });
-      return;
+      if (!partnership) {
+        res.status(400).json({ error: 'No active partner' });
+        return;
+      }
+
+      targetReceiverId = partnership.userId === userId ? partnership.partnerId : partnership.userId;
     }
-
-    const receiverId = partnership.userId === userId ? partnership.partnerId : partnership.userId;
 
     const msg = await prisma.partnerMessage.create({
       data: {
         senderId: userId,
-        receiverId,
+        receiverId: targetReceiverId,
         type,
         message: message || null,
       },

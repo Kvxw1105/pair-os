@@ -47,12 +47,20 @@ function getInitialState(): AppState {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      const parsed = JSON.parse(saved) as AppState;
+      const parsed = JSON.parse(saved) as AppState & { partner?: Partner | null };
       if (parsed.profile && parsed.actions) {
         if (!parsed.theme) parsed.theme = 'system';
         // Backward compatibility: add new fields if missing from old state
         if (!parsed.checkIn) parsed.checkIn = null;
         if (!parsed.partnerMessages) parsed.partnerMessages = [];
+        // Migrate old single partner to partners array
+        if (parsed.partner && !parsed.partners) {
+          parsed.partners = parsed.partner ? [parsed.partner] : [];
+        }
+        // Ensure partners array exists
+        if (!parsed.partners) parsed.partners = [];
+        // Ensure guidePartner exists
+        if (!parsed.guidePartner) parsed.guidePartner = defaultPartner;
         return parsed;
       }
     }
@@ -61,13 +69,14 @@ function getInitialState(): AppState {
     profile: createDefaultProfile(),
     actions: mockActions,
     events: mockEvents,
-    partner: defaultPartner,
+    partners: [],
     partnerPending: false,
     reminders: [],
     isOnboarding: true,
     theme: 'system',
     checkIn: null,
     partnerMessages: [],
+    guidePartner: defaultPartner,
   };
 }
 
@@ -132,8 +141,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return next({ actions: action.actions });
     }
 
-    case 'SYNC_PARTNER': {
-      return next({ partner: action.partner });
+    case 'SYNC_PARTNERS': {
+      return next({ partners: action.partners });
     }
 
     case 'START_ACTION': {
@@ -247,9 +256,17 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return next({ actions: updated, events });
     }
 
-    case 'SET_PARTNER': return next({ partner: action.partner, partnerPending: false });
+    case 'SET_PARTNERS': return next({ partners: action.partners, partnerPending: false });
     case 'INVITE_PARTNER': return next({ partnerPending: true });
-    case 'REMOVE_PARTNER': return next({ partner: null, partnerPending: false });
+    case 'REMOVE_PARTNER': {
+      if (action.partnerId === 'guide') {
+        return next({ guidePartner: null });
+      }
+      if (action.partnerId) {
+        return next({ partners: state.partners.filter((p) => p.id !== action.partnerId), partnerPending: false });
+      }
+      return next({ partners: [], partnerPending: false });
+    }
     case 'ADD_REMINDER': return next({ reminders: [...state.reminders, action.reminder] });
     case 'CONFIRM_REMINDER': return next({ reminders: state.reminders.map((r) => r.id === action.reminderId ? { ...r, confirmed: true } : r) });
     case 'DISMISS_REMINDER': return next({ reminders: state.reminders.filter((r) => r.id !== action.reminderId) });
@@ -320,9 +337,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })) });
     }).catch(() => { /* fallback to local */ });
 
-    api.getPartnerStatus().then((data) => {
-      if (data.partner) {
-        dispatch({ type: 'SET_PARTNER', partner: data.partner });
+    api.getPartnerStatus().then((data: { partners?: Partner[] }) => {
+      if (data.partners && data.partners.length > 0) {
+        dispatch({ type: 'SET_PARTNERS', partners: data.partners });
       }
     }).catch(() => { /* fallback to local */ });
 
@@ -394,6 +411,11 @@ export function useApi() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApi must be used within AppProvider');
   return ctx.api;
+}
+
+export function usePartner() {
+  const state = useAppState();
+  return state.partners[0] || state.guidePartner || null;
 }
 
 export function useActionDispatch() {
@@ -631,12 +653,13 @@ export function usePartnerMessages() {
   const api = useApi();
 
   const sendMessage = useCallback(async (type: 'bomb' | 'heart' | 'sleep', message?: string) => {
+    const targetPartner = state.partners[0] || state.guidePartner;
     if (!api.isAuthenticated()) {
       // Local mode: simulate
       const newMsg = {
         id: generateId(),
         senderId: state.profile?.id || 'me',
-        receiverId: state.partner?.id || 'partner',
+        receiverId: targetPartner?.id || 'partner',
         type,
         message: message || null,
         read: false,
@@ -653,7 +676,7 @@ export function usePartnerMessages() {
       console.error('Send message failed:', err);
       return { success: false };
     }
-  }, [api, dispatch, state.profile, state.partner]);
+  }, [api, dispatch, state.profile, state.partners, state.guidePartner]);
 
   const markRead = useCallback(async (messageId: string) => {
     if (!api.isAuthenticated()) {

@@ -568,7 +568,7 @@ export function SettingsPage() {
           >
             <h3 className="text-[11px] font-bold text-pair-textMuted/80 uppercase tracking-widest mb-3 px-1">危险区域</h3>
             <div className="bg-pair-surface/90 backdrop-blur rounded-3xl border border-pair-border/50 shadow-card overflow-hidden">
-              {state.partner && (
+              {state.partners.length > 0 && (
                 <motion.button
                   onClick={handleRemovePartner}
                   className="w-full px-4 py-3.5 flex items-center gap-3 text-left border-b border-pair-border/40 hover:bg-pair-danger/5 transition-colors group"
@@ -579,6 +579,23 @@ export function SettingsPage() {
                     <LogOut size={16} className="text-pair-danger" />
                   </div>
                   <span className="text-sm text-pair-danger">解除伙伴关系</span>
+                </motion.button>
+              )}
+              {state.guidePartner && (
+                <motion.button
+                  onClick={() => {
+                    if (confirm('确定解除引导伙伴吗？')) {
+                      dispatch({ type: 'REMOVE_PARTNER', partnerId: 'guide' });
+                    }
+                  }}
+                  className="w-full px-4 py-3.5 flex items-center gap-3 text-left border-b border-pair-border/40 hover:bg-pair-danger/5 transition-colors group"
+                  whileHover={{ x: 4 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pair-danger/10 to-red-50/30 flex items-center justify-center">
+                    <LogOut size={16} className="text-pair-danger" />
+                  </div>
+                  <span className="text-sm text-pair-danger">解除引导伙伴</span>
                 </motion.button>
               )}
               <motion.button

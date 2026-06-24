@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useAppDispatch, useApi, usePartnerMessages } from '../stores/AppStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Heart, Shield, Target, User, ChevronRight, Copy, Check, Bomb, Moon, Send } from 'lucide-react';
+import { ArrowLeft, Heart, Shield, Target, User, ChevronRight, Copy, Check, Bomb, Moon, Send, X } from 'lucide-react';
 
 export function PartnerPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const state = useAppState();
   const api = useApi();
-  const partner = state.partner;
+  const partners = state.partners;
+  const guidePartner = state.guidePartner;
+  const activePartner = partners[0] || guidePartner;
   const [copied, setCopied] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [messageText, setMessageText] = useState('');
@@ -59,6 +61,20 @@ export function PartnerPage() {
     }
   };
 
+  const handleRemovePartner = (partnerId: string) => {
+    if (confirm('确定解除与该伙伴的关系吗？')) {
+      dispatch({ type: 'REMOVE_PARTNER', partnerId });
+    }
+  };
+
+  const handleRemoveGuide = () => {
+    if (confirm('确定解除引导伙伴吗？')) {
+      dispatch({ type: 'REMOVE_PARTNER', partnerId: 'guide' });
+    }
+  };
+
+  const hasAnyPartner = partners.length > 0 || !!guidePartner;
+
   return (
     <div className="min-h-[100dvh] bg-pair-bg">
       <div className="px-5 pt-6 pb-4 flex items-center gap-3">
@@ -71,91 +87,140 @@ export function PartnerPage() {
       </div>
 
       <div className="px-5 pb-8">
-        {partner ? (
+        {hasAnyPartner ? (
           <>
-            {/* Partner Card */}
-            <div className="bg-pair-surface rounded-3xl p-6 border border-pair-border/50 shadow-card card-shine mb-6">
-              <div className="flex items-center gap-4 mb-5">
-                <div className="w-14 h-14 rounded-full bg-pair-primaryLight/60 flex items-center justify-center border border-pair-primary/10">
-                  <User size={24} className="text-pair-primary" />
+            {/* Partner List */}
+            {partners.map((p) => (
+              <div key={p.id} className="bg-pair-surface rounded-3xl p-6 border border-pair-border/50 shadow-card card-shine mb-4 relative">
+                <button
+                  onClick={() => handleRemovePartner(p.id)}
+                  className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-pair-danger/10 text-pair-textMuted hover:text-pair-danger transition-colors"
+                  title="解除伙伴关系"
+                >
+                  <X size={14} />
+                </button>
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="w-14 h-14 rounded-full bg-pair-primaryLight/60 flex items-center justify-center border border-pair-primary/10">
+                    <User size={24} className="text-pair-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-pair-text">{p.name}</h3>
+                    <p className="text-xs text-pair-textMuted">
+                      {p.status === 'active' ? '正在推进' : p.status === 'away' ? '暂离中' : '空闲'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-pair-text">{partner.name}</h3>
-                  <p className="text-xs text-pair-textMuted">
-                    {partner.status === 'active' ? '正在推进' : partner.status === 'away' ? '暂离中' : '空闲'}
-                  </p>
-                </div>
+                {p.currentActionTitle && (
+                  <div className="bg-pair-primaryLight/40 rounded-2xl p-4 border border-pair-primary/10">
+                    <p className="text-[11px] text-pair-primary font-semibold mb-1 tracking-wide uppercase">当前行动</p>
+                    <p className="text-sm font-bold text-pair-text">{p.currentActionTitle}</p>
+                  </div>
+                )}
               </div>
-              {partner.currentActionTitle && (
-                <div className="bg-pair-primaryLight/40 rounded-2xl p-4 border border-pair-primary/10">
-                  <p className="text-[11px] text-pair-primary font-semibold mb-1 tracking-wide uppercase">当前行动</p>
-                  <p className="text-sm font-bold text-pair-text">{partner.currentActionTitle}</p>
+            ))}
+
+            {/* Guide Partner Card */}
+            {partners.length === 0 && guidePartner && (
+              <div className="bg-pair-surface rounded-3xl p-6 border border-pair-border/50 shadow-card card-shine mb-4 relative">
+                <button
+                  onClick={handleRemoveGuide}
+                  className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-pair-danger/10 text-pair-textMuted hover:text-pair-danger transition-colors"
+                  title="解除引导伙伴"
+                >
+                  <X size={14} />
+                </button>
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="w-14 h-14 rounded-full bg-pair-primaryLight/60 flex items-center justify-center border border-pair-primary/10">
+                    <User size={24} className="text-pair-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-pair-text">{guidePartner.name}</h3>
+                    <p className="text-xs text-pair-textMuted">
+                      {guidePartner.status === 'active' ? '正在推进' : guidePartner.status === 'away' ? '暂离中' : '空闲'}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+                <p className="text-xs text-pair-textMuted/70 bg-pair-surfaceAlt/50 rounded-xl p-3">
+                  这是引导伙伴，可随时解除
+                </p>
+                {guidePartner.currentActionTitle && (
+                  <div className="bg-pair-primaryLight/40 rounded-2xl p-4 border border-pair-primary/10 mt-3">
+                    <p className="text-[11px] text-pair-primary font-semibold mb-1 tracking-wide uppercase">当前行动</p>
+                    <p className="text-sm font-bold text-pair-text">{guidePartner.currentActionTitle}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Send Message */}
-            <div className="bg-pair-surface rounded-3xl p-5 border border-pair-border/50 shadow-card card-shine mb-6">
-              <h3 className="text-sm font-bold text-pair-text mb-4 tracking-tight">给 {partner.name} 发条消息</h3>
-              <div className="flex gap-2 mb-4">
-                <motion.button
-                  onClick={() => sendMessage('bomb')}
-                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-200/50 text-red-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
-                  whileHover={{ scale: 1.03, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <Bomb size={16} />
-                  扔炸弹
-                </motion.button>
-                <motion.button
-                  onClick={() => sendMessage('heart')}
-                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200/50 text-rose-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
-                  whileHover={{ scale: 1.03, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <Heart size={16} />
-                  送爱心
-                </motion.button>
-                <motion.button
-                  onClick={() => sendMessage('sleep')}
-                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/50 text-indigo-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
-                  whileHover={{ scale: 1.03, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <Moon size={16} />
-                  提醒休息
-                </motion.button>
+            {activePartner && (
+              <div className="bg-pair-surface rounded-3xl p-5 border border-pair-border/50 shadow-card card-shine mb-6">
+                <h3 className="text-sm font-bold text-pair-text mb-4 tracking-tight">
+                  给 {activePartner.name} 发条消息
+                  {partners.length > 1 && (
+                    <span className="text-xs text-pair-textMuted font-normal ml-2">（发送给第一个伙伴）</span>
+                  )}
+                </h3>
+                <div className="flex gap-2 mb-4">
+                  <motion.button
+                    onClick={() => sendMessage('bomb')}
+                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-200/50 text-red-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
+                    whileHover={{ scale: 1.03, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Bomb size={16} />
+                    扔炸弹
+                  </motion.button>
+                  <motion.button
+                    onClick={() => sendMessage('heart')}
+                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200/50 text-rose-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
+                    whileHover={{ scale: 1.03, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Heart size={16} />
+                    送爱心
+                  </motion.button>
+                  <motion.button
+                    onClick={() => sendMessage('sleep')}
+                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/50 text-indigo-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
+                    whileHover={{ scale: 1.03, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Moon size={16} />
+                    提醒休息
+                  </motion.button>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && messageText.trim()) {
+                        sendMessage('heart', messageText.trim());
+                        setMessageText('');
+                      }
+                    }}
+                    placeholder={`想对 ${activePartner.name} 说什么...`}
+                    className="flex-1 px-4 py-3 bg-pair-surfaceAlt/60 rounded-2xl text-sm text-pair-text border border-pair-border/40 focus:border-pair-primary focus:outline-none transition-colors"
+                  />
+                  <motion.button
+                    onClick={() => {
+                      if (messageText.trim()) {
+                        sendMessage('heart', messageText.trim());
+                        setMessageText('');
+                      }
+                    }}
+                    disabled={!messageText.trim()}
+                    className="px-4 py-3 bg-pair-primary text-white rounded-2xl flex items-center gap-1.5 shadow-glow-primary disabled:opacity-40 disabled:shadow-none transition-all"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Send size={16} />
+                  </motion.button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && messageText.trim()) {
-                      sendMessage('heart', messageText.trim());
-                      setMessageText('');
-                    }
-                  }}
-                  placeholder={`想对 ${partner.name} 说什么...`}
-                  className="flex-1 px-4 py-3 bg-pair-surfaceAlt/60 rounded-2xl text-sm text-pair-text border border-pair-border/40 focus:border-pair-primary focus:outline-none transition-colors"
-                />
-                <motion.button
-                  onClick={() => {
-                    if (messageText.trim()) {
-                      sendMessage('heart', messageText.trim());
-                      setMessageText('');
-                    }
-                  }}
-                  disabled={!messageText.trim()}
-                  className="px-4 py-3 bg-pair-primary text-white rounded-2xl flex items-center gap-1.5 shadow-glow-primary disabled:opacity-40 disabled:shadow-none transition-all"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Send size={16} />
-                </motion.button>
-              </div>
-            </div>
+            )}
 
             {/* Shared Stats */}
             <div className="bg-pair-surface rounded-3xl p-6 border border-pair-border/50 shadow-card card-shine mb-6">
@@ -209,14 +274,36 @@ export function PartnerPage() {
               <p className="text-xs text-pair-textSecondary">没有需要验收的承诺</p>
             </div>
 
-            {/* Together Start */}
+            {/* Invite more */}
             <button
-              onClick={() => dispatch({ type: 'INVITE_PARTNER' })}
-              className="w-full py-4 bg-pair-primary text-white rounded-3xl font-semibold text-sm flex items-center justify-center gap-2 shadow-glow-primary hover:shadow-glow-primary active:scale-[0.98] transition-all duration-300"
+              onClick={() => setShowInvite(true)}
+              className="w-full py-4 bg-pair-primary text-white rounded-3xl font-semibold text-sm flex items-center justify-center gap-2 shadow-glow-primary hover:shadow-glow-primary active:scale-[0.98] transition-all duration-300 mb-4"
             >
               <Target size={18} strokeWidth={2.5} />
-              邀请一起开始 10 分钟
+              邀请更多伙伴
             </button>
+
+            {showInvite && api.isAuthenticated() && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-pair-surface rounded-2xl p-5 border border-pair-border/50 shadow-card card-shine"
+              >
+                <p className="text-sm text-pair-textSecondary mb-3">复制邀请链接发送给对方：</p>
+                <div className="flex gap-2">
+                  <div className="flex-1 px-4 py-3 bg-pair-surfaceAlt/60 rounded-xl text-xs text-pair-textMuted truncate border border-pair-border/40">
+                    {window.location.origin}/#/auth?invite={state.profile?.id || 'demo'}
+                  </div>
+                  <button
+                    onClick={handleCopyLink}
+                    className="px-4 py-3 bg-pair-primary text-white rounded-xl flex items-center gap-1.5 shadow-glow-primary hover:shadow-glow-primary transition-all"
+                  >
+                    {copied ? <Check size={16} /> : <Copy size={16} />}
+                    <span className="text-xs">{copied ? '已复制' : '复制'}</span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </>
         ) : (
           <>

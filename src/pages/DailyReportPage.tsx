@@ -19,7 +19,7 @@ export function DailyReportPage() {
   const state = useAppState();
   const api = useApi();
   const profile = state.profile;
-  const partner = state.partner;
+  const partner = state.partners[0] || state.guidePartner || null;
 
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();

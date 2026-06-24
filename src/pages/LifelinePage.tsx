@@ -38,7 +38,7 @@ export function LifelinePage() {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   const profile = state.profile;
-  const partner = state.partner;
+  const partner = state.partners[0] || state.guidePartner || null;
   const myId = profile?.id;
   const partnerId = partner?.id;
 

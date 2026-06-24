@@ -39,9 +39,9 @@ model User {
   actions   Action[]
   events    ActionEvent[]
   
-  // Partnership
-  partnerOf Partnership? @relation("UserPartnerOf")
-  partnerWith Partnership? @relation("UserPartnerWith")
+  // Partnerships
+  partnerOf Partnership[] @relation("UserPartnerOf")
+  partnerWith Partnership[] @relation("UserPartnerWith")
 
   @@map("users")
 }
@@ -92,16 +92,17 @@ model ActionEvent {
 }
 
 model Partnership {
-  id          String   @id @default(cuid())
-  userId      String   @unique @map("user_id")
-  partnerId   String   @unique @map("partner_id")
-  status      String   @default("pending") // pending, active, ended
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  partnerId String   @map("partner_id")
+  status    String   @default("pending") // pending, active, ended
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user    User @relation("UserPartnerOf", fields: [userId], references: [id], onDelete: Cascade)
   partner User @relation("UserPartnerWith", fields: [partnerId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, partnerId])
   @@map("partnerships")
 }
 

@@ -184,7 +184,7 @@ export function TodayPage() {
 
   const todayCompleted = todayActions.filter((a) => a.state === 'completed' || a.state === 'partial');
   const totalDurationToday = todayActions.reduce((sum, a) => sum + a.totalDurationMs, 0);
-  const partner = state.partner;
+  const partner = state.partners[0] || state.guidePartner || null;
 
   return (
     <div className="relative min-h-[100dvh] dream-bg overflow-hidden">
@@ -311,13 +311,19 @@ export function TodayPage() {
                     {msg.type === 'bomb' ? '💣' : msg.type === 'heart' ? '❤️' : '🌙'}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-pair-text">
-                      {msg.type === 'bomb'
-                        ? '伙伴扔来一个炸弹！'
-                        : msg.type === 'heart'
-                        ? '收到伙伴的爱心鼓励'
-                        : '伙伴提醒你注意休息'}
-                    </p>
+                    {(() => {
+                      const sender = state.partners.find((p) => p.id === msg.senderId) || (state.guidePartner?.id === msg.senderId ? state.guidePartner : null);
+                      const senderName = sender?.name || '伙伴';
+                      return (
+                        <p className="text-sm font-medium text-pair-text">
+                          {msg.type === 'bomb'
+                            ? `${senderName} 扔来一个炸弹！`
+                            : msg.type === 'heart'
+                            ? `收到 ${senderName} 的爱心鼓励`
+                            : `${senderName} 提醒你注意休息`}
+                        </p>
+                      );
+                    })()}
                     {msg.message && (
                       <p className="text-xs text-pair-textMuted mt-0.5">{msg.message}</p>
                     )}
