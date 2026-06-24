@@ -155,34 +155,45 @@ export function SettingsPage() {
         </motion.div>
 
         <div className="px-5 pb-8 space-y-6">
-          {/* Profile */}
-          <motion.div
-            className="bg-pair-surface/90 backdrop-blur rounded-3xl p-5 border border-pair-border/50 shadow-card hover:shadow-card-hover transition-all duration-500 relative overflow-hidden group"
+          {/* Profile — clickable to edit */}
+          <motion.button
+            onClick={() => navigate('/profile')}
+            className="w-full text-left bg-pair-surface/90 backdrop-blur rounded-3xl p-5 border border-pair-border/50 shadow-card hover:shadow-card-hover transition-all duration-500 relative overflow-hidden group"
             initial={{ opacity: 0, y: 15, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] as const }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-pair-primary/3 via-transparent to-pair-accent/3 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="relative z-10 flex items-center gap-4">
               <motion.div
-                className="w-12 h-12 rounded-full bg-gradient-to-br from-pair-primaryLight/70 to-pair-accentLight/40 flex items-center justify-center border border-pair-primary/15"
+                className="w-12 h-12 rounded-full bg-gradient-to-br from-pair-primaryLight/70 to-pair-accentLight/40 flex items-center justify-center border border-pair-primary/15 overflow-hidden"
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 transition={{ type: 'spring', stiffness: 300 }}
               >
-                <User size={22} className="text-pair-primary" />
+                {profile?.avatar ? (
+                  <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
+                ) : (
+                  <User size={22} className="text-pair-primary" />
+                )}
               </motion.div>
-              <div>
+              <div className="flex-1">
                 <h3 className="text-base font-bold text-pair-text">{profile?.name || '我'}</h3>
-                <p className="text-xs text-pair-textMuted/70">{profile?.timezone}</p>
+                <p className="text-xs text-pair-textMuted/70">
+                  {profile?.bio || profile?.timezone || '点击完善个人资料'}
+                </p>
               </div>
+              <ChevronRight size={16} className="text-pair-textMuted/40 group-hover:text-pair-primary/60 transition-colors" />
             </div>
-          </motion.div>
+          </motion.button>
 
           {/* Navigation Links */}
           <div className="space-y-3">
             {[
-              { path: '/context', icon: Brain, title: 'AI 理解我', desc: '查看和修改行动上下文', gradient: 'from-pair-primaryLight/50 to-pair-accentLight/30', iconColor: 'text-pair-primary' },
-              { path: '/partner', icon: User, title: '伙伴关系', desc: '管理双人共享与协议', gradient: 'from-pair-accentLight/50 to-pair-warnLight/30', iconColor: 'text-pair-accent' },
+              { path: '/profile', icon: User, title: '个人资料', desc: '编辑昵称、头像、个性签名', gradient: 'from-pair-primaryLight/50 to-pair-accentLight/30', iconColor: 'text-pair-primary' },
+              { path: '/context', icon: Brain, title: 'AI 理解我', desc: '查看和修改行动上下文', gradient: 'from-pair-accentLight/50 to-pair-warnLight/30', iconColor: 'text-pair-accent' },
+              { path: '/partner', icon: User, title: '伙伴关系', desc: '管理双人共享与协议', gradient: 'from-pair-warnLight/50 to-pair-successLight/30', iconColor: 'text-pair-warn' },
             ].map((item, i) => (
               <motion.button
                 key={item.path}
