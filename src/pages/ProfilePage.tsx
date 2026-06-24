@@ -1,8 +1,36 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useAppDispatch, useApi } from '../stores/AppStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Save, User } from 'lucide-react';
+import { ArrowLeft, Save, User, Upload, X } from 'lucide-react';
+
+/** Resize and compress image to max 256x256, return base64 data URL */
+function resizeImage(file: File, maxSize = 256): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas error')); return; }
+
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; } }
+        else { if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; } }
+
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -10,12 +38,31 @@ export function ProfilePage() {
   const dispatch = useAppDispatch();
   const api = useApi();
   const profile = state.profile;
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(profile?.name || '');
   const [avatar, setAvatar] = useState(profile?.avatar || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+
+    setUploading(true);
+    try {
+      const dataUrl = await resizeImage(file, 256);
+      setAvatar(dataUrl);
+    } catch (err) {
+      console.error('Image resize failed:', err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSave = async () => {
     if (!profile) return;
@@ -67,7 +114,7 @@ export function ProfilePage() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center mb-8"
         >
-          <div className="relative mb-3">
+          <div className="relative mb-4">
             {avatar ? (
               <img
                 src={avatar}
@@ -79,18 +126,42 @@ export function ProfilePage() {
                 <User size={40} className="text-pair-primary" />
               </div>
             )}
-          </div>
-          <div className="w-full">
-            <label className="text-xs text-pair-textMuted font-medium mb-1.5 block">头像 URL</label>
+            {uploading && (
+              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              </div>
+            )}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-pair-primary text-white flex items-center justify-center shadow-glow-primary hover:scale-110 transition-transform"
+              title="上传头像"
+            >
+              <Upload size={14} />
+            </button>
+            {avatar && (
+              <button
+                onClick={() => setAvatar('')}
+                className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-pair-danger text-white flex items-center justify-center shadow-glow-danger hover:scale-110 transition-transform"
+                title="清除头像"
+              >
+                <X size={12} />
+              </button>
+            )}
             <input
-              type="text"
-              value={avatar}
-              onChange={(e) => setAvatar(e.target.value)}
-              placeholder="粘贴图片链接，或留空使用默认头像"
-              className="w-full px-4 py-3 bg-pair-surface/80 rounded-2xl text-sm text-pair-text border border-pair-border/50 focus:border-pair-primary focus:outline-none transition-colors"
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
             />
-            <p className="text-[11px] text-pair-textMuted/50 mt-1.5">支持粘贴任意图片链接</p>
           </div>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="text-sm text-pair-primary font-medium hover:underline"
+          >
+            {avatar ? '更换头像' : '上传头像'}
+          </button>
+          <p className="text-[11px] text-pair-textMuted/50 mt-1">支持 JPG、PNG，自动压缩</p>
         </motion.div>
 
         {/* Name */}
