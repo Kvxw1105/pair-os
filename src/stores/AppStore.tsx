@@ -358,13 +358,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Apply theme to document
   useEffect(() => {
+    if (!state || !state.theme) return;
     const html = document.documentElement;
+    if (!html) return;
     if (state.theme === 'system') {
       html.removeAttribute('data-theme');
     } else {
       html.setAttribute('data-theme', state.theme);
     }
-  }, [state.theme]);
+  }, [state?.theme]);
 
   // Poll partner messages every 30 seconds
   useEffect(() => {
