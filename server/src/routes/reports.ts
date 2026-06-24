@@ -20,14 +20,23 @@ function endOfDay(dateStr: string): Date {
   return d;
 }
 
-// GET /api/reports — list recent reports for user's partnership
+// Helper: get first active partnership for user (or null if solo)
+async function getFirstPartnership(userId: string) {
+  const p = await prisma.partnership.findFirst({
+    where: {
+      OR: [
+        { userId, status: 'active' },
+        { partnerId: userId, status: 'active' },
+      ],
+    },
+  });
+  return p;
+}
+
+// GET /api/reports — list recent reports for user's first partnership
 router.get('/', async (req: AuthRequest, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      include: { partnerOf: true, partnerWith: true },
-    });
-    const partnership = user?.partnerOf || user?.partnerWith;
+    const partnership = await getFirstPartnership(req.user!.id);
     if (!partnership) {
       return res.json({ reports: [] });
     }
@@ -53,14 +62,49 @@ router.get('/:date', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Invalid date format, use YYYY-MM-DD' });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      include: { partnerOf: { include: { partner: true } }, partnerWith: { include: { user: true } } },
-    });
-    const partnership = user?.partnerOf || user?.partnerWith;
+    const userId = req.user!.id;
+    const partnership = await getFirstPartnership(userId);
+
+    // If no partner, generate solo report
     if (!partnership) {
-      return res.status(404).json({ error: 'No partnership found' });
+      const myActions = await prisma.action.findMany({
+        where: {
+          userId,
+          createdAt: { gte: startOfDay(date), lte: endOfDay(date) },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+      const myDuration = myActions.reduce((sum, a) => sum + a.totalDurationMs, 0);
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+
+      res.json({
+        report: {
+          date,
+          user1Id: userId,
+          user1Name: user?.name || '我',
+          user1Actions: myActions.map((a) => ({
+            id: a.id,
+            title: a.title,
+            state: a.state,
+            duration: a.totalDurationMs,
+            result: a.result,
+            resultNote: a.resultNote,
+            completionPercent: a.completionPercent,
+          })),
+          user1Duration: myDuration,
+          user2Id: null,
+          user2Name: null,
+          user2Actions: [],
+          user2Duration: 0,
+          user1Summary: null,
+          user2Summary: null,
+          mutualMessage: null,
+        },
+      });
+      return;
     }
+
+    const partnerId = partnership.userId === userId ? partnership.partnerId : partnership.userId;
 
     // Find existing report
     let report = await prisma.dailyReport.findUnique({
@@ -69,7 +113,6 @@ router.get('/:date', async (req: AuthRequest, res) => {
 
     // If not found, auto-generate from actions
     if (!report) {
-      const partnerId = partnership.userId === req.user!.id ? partnership.partnerId : partnership.userId;
       let partnerName = '伙伴';
       try {
         const partnerUser = await prisma.user.findUnique({
@@ -79,10 +122,11 @@ router.get('/:date', async (req: AuthRequest, res) => {
         if (partnerUser?.name) partnerName = partnerUser.name;
       } catch { /* fallback */ }
 
-      // Fetch today's actions for both users
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+
       const myActions = await prisma.action.findMany({
         where: {
-          userId: req.user!.id,
+          userId,
           createdAt: { gte: startOfDay(date), lte: endOfDay(date) },
         },
         orderBy: { createdAt: 'asc' },
@@ -103,9 +147,9 @@ router.get('/:date', async (req: AuthRequest, res) => {
         data: {
           date,
           partnershipId: partnership.id,
-          user1Id: req.user!.id,
+          user1Id: userId,
           user1Name: user?.name || '我',
-          user1Actions: JSON.stringify(myActions.map(a => ({
+          user1Actions: JSON.stringify(myActions.map((a) => ({
             id: a.id,
             title: a.title,
             state: a.state,
@@ -117,7 +161,7 @@ router.get('/:date', async (req: AuthRequest, res) => {
           user1Duration: myDuration,
           user2Id: partnerId,
           user2Name: partnerName,
-          user2Actions: JSON.stringify(partnerActions.map(a => ({
+          user2Actions: JSON.stringify(partnerActions.map((a) => ({
             id: a.id,
             title: a.title,
             state: a.state,
