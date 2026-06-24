@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useAppDispatch, useActiveAction, useAwayAction, useTodayActions, useActionDispatch, useApi, useCheckIn, usePartnerMessages } from '../stores/AppStore';
 import { formatDuration, formatDateFull, getStateLabel } from '../utils/time';
+import { playActionStart, playButtonClick, playNavigation, playCheckIn, playThud } from '../utils/sound';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DreamParticles } from '../components/DreamParticles';
 import { GlowingOrb } from '../components/DreamEffects';
@@ -199,7 +200,7 @@ export function TodayPage() {
       <GlowingOrb color="rgba(74, 139, 122, 0.05)" size={200} className="top-[40%] right-[10%]" blur={60} />
 
       <motion.div
-        className="relative px-5 pt-10 pb-8 max-w-lg mx-auto"
+        className="relative px-5 pt-10 pb-8 max-w-lg lg:max-w-5xl mx-auto lg:px-8"
         style={{ zIndex: 1 }}
         variants={containerVariants}
         initial="hidden"
@@ -245,6 +246,7 @@ export function TodayPage() {
           <motion.button
             onClick={() => {
               if (!checkIn?.checkedInToday) {
+                playCheckIn();
                 doCheckIn();
               }
             }}
@@ -362,7 +364,7 @@ export function TodayPage() {
             <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-pair-primary/5 via-pair-accent/3 to-pair-stuck/5 opacity-0 group-focus-within:opacity-100 transition-all duration-500 blur-xl scale-[1.03]" />
 
             <form
-              onSubmit={(e) => { e.preventDefault(); handleSmartStart(); }}
+              onSubmit={(e) => { e.preventDefault(); playActionStart(); handleSmartStart(); }}
               className="relative group"
             >
               {/* Animated glow ring */}
@@ -459,7 +461,7 @@ export function TodayPage() {
                       {/* Normalized option */}
                       {aiProcessResult.normalized && aiProcessResult.normalized !== inputValue.trim() && (
                         <motion.button
-                          onClick={() => handleSelectOption(aiProcessResult.normalized)}
+                          onClick={() => { playActionStart(); handleSelectOption(aiProcessResult.normalized); }}
                           className="w-full text-left bg-gradient-to-br from-pair-primary/5 to-pair-accent/5 rounded-2xl p-4 border border-pair-primary/15 hover:border-pair-primary/30 transition-all group"
                           whileHover={{ x: 3, scale: 1.01 }}
                           whileTap={{ scale: 0.98 }}
@@ -479,7 +481,7 @@ export function TodayPage() {
 
                       {/* Direct start option */}
                       <motion.button
-                        onClick={() => handleSelectOption(inputValue)}
+                        onClick={() => { playActionStart(); handleSelectOption(inputValue); }}
                         className="w-full text-left bg-pair-surfaceAlt/40 rounded-2xl p-4 border border-pair-border/30 hover:border-pair-border/50 transition-all"
                         whileHover={{ x: 2 }}
                         whileTap={{ scale: 0.98 }}
@@ -528,7 +530,7 @@ export function TodayPage() {
 
           {/* Log Action Button */}
           <motion.button
-            onClick={() => setShowLogModal(true)}
+            onClick={() => { playButtonClick(); setShowLogModal(true); }}
             className="mt-2 text-xs text-pair-textMuted/60 hover:text-pair-accent transition-colors flex items-center gap-1"
             whileHover={{ x: 2 }}
           >
@@ -672,7 +674,7 @@ export function TodayPage() {
                     已进行 {formatDuration(awayAction.totalDurationMs)} · 暂离于 {formatDuration(Date.now() - (awayAction.lastAwayAt || 0))} 前
                   </p>
                   <motion.button
-                    onClick={() => navigate(`/action/${awayAction.id}`)}
+                    onClick={() => { playNavigation(); navigate(`/action/${awayAction.id}`); }}
                     className="w-full py-3.5 bg-gradient-to-r from-pair-accent to-pair-accentMuted text-white rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 shadow-glow-accent hover:shadow-glow-accent transition-all duration-300"
                     whileHover={{ scale: 1.02, y: -1 }}
                     whileTap={{ scale: 0.97 }}
@@ -1066,7 +1068,7 @@ export function TodayPage() {
                       取消
                     </motion.button>
                     <motion.button
-                      onClick={handleLogAction}
+                      onClick={() => { playThud(); handleLogAction(); }}
                       disabled={logLoading || !logTitle.trim() || !logDuration.trim()}
                       className="flex-1 py-3.5 bg-gradient-to-r from-pair-primary to-pair-primaryMuted text-white rounded-2xl text-sm font-medium shadow-glow-primary hover:shadow-glow-primary transition-all disabled:opacity-50"
                       whileHover={{ scale: 1.02 }}

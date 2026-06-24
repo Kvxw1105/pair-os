@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppState, useActionDispatch } from '../stores/AppStore';
 import { formatDuration } from '../utils/time';
+import { playCelebration } from '../utils/sound';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DreamParticles } from '../components/DreamParticles';
 import { GlowingOrb } from '../components/DreamEffects';
@@ -73,6 +74,7 @@ export function EndPage() {
     if (!selectedResult) return;
     const result = selectedResult === 'failed' ? 'abandoned' : selectedResult === 'cancelled' ? 'abandoned' : selectedResult;
     await actionDispatch.endAction(action.id, result as 'completed' | 'partial' | 'abandoned', percent, note.trim());
+    playCelebration();
     setShowCelebration(true);
     setTimeout(() => {
       navigate('/');

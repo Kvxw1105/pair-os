@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useAppDispatch, useApi, usePartnerMessages } from '../stores/AppStore';
+import { playButtonClick, playMessageSent, playNavigation } from '../utils/sound';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Heart, Shield, Target, User, ChevronRight, Copy, Check, Bomb, Moon, Send, X } from 'lucide-react';
 
@@ -78,7 +79,7 @@ export function PartnerPage() {
   return (
     <div className="min-h-[100dvh] bg-pair-bg">
       <div className="px-5 pt-6 pb-4 flex items-center gap-3">
-        <button onClick={() => navigate('/')} className="p-2 -ml-2 rounded-xl hover:bg-pair-surfaceAlt/60 transition-colors">
+        <button onClick={() => { playNavigation(); navigate('/'); }} className="p-2 -ml-2 rounded-xl hover:bg-pair-surfaceAlt/60 transition-colors">
           <ArrowLeft size={20} className="text-pair-textSecondary" />
         </button>
         <div className="flex-1">
@@ -163,7 +164,7 @@ export function PartnerPage() {
                 </h3>
                 <div className="flex gap-2 mb-4">
                   <motion.button
-                    onClick={() => sendMessage('bomb')}
+                    onClick={() => { playMessageSent(); sendMessage('bomb'); }}
                     className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-200/50 text-red-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
                     whileHover={{ scale: 1.03, y: -2 }}
                     whileTap={{ scale: 0.97 }}
@@ -172,7 +173,7 @@ export function PartnerPage() {
                     扔炸弹
                   </motion.button>
                   <motion.button
-                    onClick={() => sendMessage('heart')}
+                    onClick={() => { playMessageSent(); sendMessage('heart'); }}
                     className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200/50 text-rose-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
                     whileHover={{ scale: 1.03, y: -2 }}
                     whileTap={{ scale: 0.97 }}
@@ -181,7 +182,7 @@ export function PartnerPage() {
                     送爱心
                   </motion.button>
                   <motion.button
-                    onClick={() => sendMessage('sleep')}
+                    onClick={() => { playMessageSent(); sendMessage('sleep'); }}
                     className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/50 text-indigo-600 font-medium text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
                     whileHover={{ scale: 1.03, y: -2 }}
                     whileTap={{ scale: 0.97 }}
@@ -243,7 +244,7 @@ export function PartnerPage() {
 
             {/* Lifeline Entry */}
             <motion.button
-              onClick={() => navigate('/lifeline')}
+              onClick={() => { playNavigation(); navigate('/lifeline'); }}
               className="w-full bg-pair-surface rounded-3xl p-5 border border-pair-border/50 shadow-card card-shine mb-6 flex items-center gap-4 group relative overflow-hidden"
               whileHover={{ x: 4, scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
@@ -295,7 +296,7 @@ export function PartnerPage() {
                     {window.location.origin}/#/auth?invite={state.profile?.id || 'demo'}
                   </div>
                   <button
-                    onClick={handleCopyLink}
+                    onClick={() => { playButtonClick(); handleCopyLink(); }}
                     className="px-4 py-3 bg-pair-primary text-white rounded-xl flex items-center gap-1.5 shadow-glow-primary hover:shadow-glow-primary transition-all"
                   >
                     {copied ? <Check size={16} /> : <Copy size={16} />}
@@ -378,7 +379,7 @@ export function PartnerPage() {
                     {window.location.origin}/#/auth?invite={state.profile?.id || 'demo'}
                   </div>
                   <button
-                    onClick={handleCopyLink}
+                    onClick={() => { playButtonClick(); handleCopyLink(); }}
                     className="px-4 py-3 bg-pair-primary text-white rounded-xl flex items-center gap-1.5 shadow-glow-primary hover:shadow-glow-primary transition-all"
                   >
                     {copied ? <Check size={16} /> : <Copy size={16} />}
