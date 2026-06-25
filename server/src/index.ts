@@ -30,27 +30,42 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/checkin', checkinRoutes);
 
 // Serve frontend static files in production
-// Works whether cwd is project root or server/ subdirectory
-const frontendDistPaths = [
-  path.join(process.cwd(), 'dist'),
-  path.join(process.cwd(), '..', 'dist'),
+// Try multiple possible locations since cwd varies by deployment
+const possibleDistPaths = [
+  path.join(process.cwd(), 'dist'),               // cwd = project root
+  path.join(process.cwd(), '..', 'dist'),         // cwd = server/
+  path.join(process.cwd(), '..', '..', 'dist'),   // cwd = server/dist
+  path.join(process.cwd(), 'server', '..', 'dist'), // cwd = server/ (npm run from server)
 ];
 
-const frontendDist = frontendDistPaths.find((p) => {
+let frontendDist: string | null = null;
+for (const p of possibleDistPaths) {
   try {
-    return fs.existsSync(p) && fs.existsSync(path.join(p, 'index.html'));
+    if (fs.existsSync(p) && fs.existsSync(path.join(p, 'index.html'))) {
+      frontendDist = p;
+      break;
+    }
   } catch {
-    return false;
+    // ignore
   }
-});
+}
+
+console.log('CWD:', process.cwd());
+console.log('Frontend dist path:', frontendDist || 'NOT FOUND');
+if (frontendDist) {
+  console.log('Dist files:', fs.readdirSync(frontendDist).slice(0, 10));
+}
 
 if (frontendDist) {
   app.use(express.static(frontendDist));
   app.get('*', (_req, res) => {
-    res.sendFile(path.join(frontendDist, 'index.html'));
+    res.sendFile(path.join(frontendDist!, 'index.html'));
   });
 } else {
   console.log('Frontend dist not found, running in API-only mode');
+  app.get('/', (_req, res) => {
+    res.json({ status: 'ok', message: 'API-only mode — frontend dist not found' });
+  });
 }
 
 app.listen(PORT, '0.0.0.0', () => {
