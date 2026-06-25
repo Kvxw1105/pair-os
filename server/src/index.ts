@@ -29,20 +29,33 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/checkin', checkinRoutes);
 
-// Serve frontend static files in production
-// Try multiple possible locations since cwd varies by deployment
-const possibleDistPaths = [
-  path.join(process.cwd(), 'dist'),               // cwd = project root
-  path.join(process.cwd(), '..', 'dist'),         // cwd = server/
-  path.join(process.cwd(), '..', '..', 'dist'),   // cwd = server/dist
-  path.join(process.cwd(), 'server', '..', 'dist'), // cwd = server/ (npm run from server)
+// ─── Find frontend dist ────────────────────────────────────────
+// Try to infer the project root from the script location
+
+const scriptPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
+const scriptDir = scriptPath ? path.dirname(scriptPath) : process.cwd();
+
+const possibleDistPaths: string[] = [
+  // From script location: if script is at server/dist/index.js,
+  // then ../../dist = project-root/dist
+  path.join(scriptDir, '..', '..', 'dist'),
+  path.join(scriptDir, '..', '..', '..', 'dist'),
+  // From process.cwd()
+  path.join(process.cwd(), 'dist'),
+  path.join(process.cwd(), '..', 'dist'),
+  path.join(process.cwd(), '..', '..', 'dist'),
+  // Common Render paths
+  '/opt/render/project/dist',
+  '/opt/render/project/pair-os/dist',
+  '/app/dist',
 ];
 
 let frontendDist: string | null = null;
 for (const p of possibleDistPaths) {
   try {
-    if (fs.existsSync(p) && fs.existsSync(path.join(p, 'index.html'))) {
-      frontendDist = p;
+    const resolved = path.resolve(p);
+    if (fs.existsSync(resolved) && fs.existsSync(path.join(resolved, 'index.html'))) {
+      frontendDist = resolved;
       break;
     }
   } catch {
@@ -50,21 +63,60 @@ for (const p of possibleDistPaths) {
   }
 }
 
+// ─── Debug endpoint ────────────────────────────────────────────
+app.get('/api/debug', (_req, res) => {
+  const checkedPaths = possibleDistPaths.map((p) => {
+    try {
+      const resolved = path.resolve(p);
+      const exists = fs.existsSync(resolved);
+      const hasIndex = exists && fs.existsSync(path.join(resolved, 'index.html'));
+      let files: string[] = [];
+      try {
+        if (exists) files = fs.readdirSync(resolved).slice(0, 20);
+      } catch { /* ignore */ }
+      return { path: resolved, exists, hasIndex, files };
+    } catch (e: any) {
+      return { path: p, error: e.message };
+    }
+  });
+
+  res.json({
+    cwd: process.cwd(),
+    scriptPath,
+    scriptDir,
+    frontendDist,
+    checkedPaths,
+  });
+});
+
+// ─── Serve static files ────────────────────────────────────────
+console.log('=== PairOS Server Startup ===');
 console.log('CWD:', process.cwd());
-console.log('Frontend dist path:', frontendDist || 'NOT FOUND');
-if (frontendDist) {
-  console.log('Dist files:', fs.readdirSync(frontendDist).slice(0, 10));
-}
+console.log('Script path:', scriptPath);
+console.log('Script dir:', scriptDir);
+console.log('Frontend dist:', frontendDist || 'NOT FOUND');
 
 if (frontendDist) {
+  try {
+    const distFiles = fs.readdirSync(frontendDist);
+    console.log('Dist contents:', distFiles.slice(0, 15));
+    const assetsPath = path.join(frontendDist, 'assets');
+    if (fs.existsSync(assetsPath)) {
+      console.log('Assets:', fs.readdirSync(assetsPath).slice(0, 10));
+    }
+  } catch (e) {
+    console.log('Could not read dist:', e);
+  }
+
   app.use(express.static(frontendDist));
   app.get('*', (_req, res) => {
     res.sendFile(path.join(frontendDist!, 'index.html'));
   });
 } else {
-  console.log('Frontend dist not found, running in API-only mode');
+  console.log('ERROR: Frontend dist not found. Checked paths:');
+  possibleDistPaths.forEach((p) => console.log('  -', path.resolve(p)));
   app.get('/', (_req, res) => {
-    res.json({ status: 'ok', message: 'API-only mode — frontend dist not found' });
+    res.json({ status: 'error', message: 'Frontend dist not found — check /api/debug for details' });
   });
 }
 
