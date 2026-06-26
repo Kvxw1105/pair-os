@@ -169,26 +169,6 @@
   --shadow-glow-danger: 0 0 20px rgba(248,113,113,0.18), 0 0 40px rgba(248,113,113,0.08);
   --shadow-inner-glow: inset 0 1px 2px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.2);
 }
-  --color-pair-dangerGlow: rgba(200, 120, 112, 0.18);
-  --color-pair-dream-purple: #9B8DD5;
-  --color-pair-dream-rose: #D4A5B0;
-  --color-pair-dream-gold: #FBBF24;
-  --color-pair-dream-teal: #5EEAD4;
-
-  --shadow-soft: 0 1px 2px rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.15);
-  --shadow-soft-lg: 0 2px 8px rgba(0,0,0,0.22), 0 8px 24px rgba(0,0,0,0.18);
-  --shadow-card: 0 0 0 1px rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.25);
-  --shadow-card-hover: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.3);
-  --shadow-floating: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.03);
-  --shadow-floating-lg: 0 8px 30px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.04);
-  --shadow-glow-primary: 0 0 20px rgba(74,222,128,0.2), 0 0 40px rgba(74,222,128,0.1);
-  --shadow-glow-accent: 0 0 20px rgba(251,191,36,0.2), 0 0 40px rgba(251,191,36,0.1);
-  --shadow-glow-success: 0 0 20px rgba(52,211,153,0.2), 0 0 40px rgba(52,211,153,0.1);
-  --shadow-glow-warn: 0 0 20px rgba(245,158,11,0.18), 0 0 40px rgba(245,158,11,0.08);
-  --shadow-glow-stuck: 0 0 20px rgba(167,139,250,0.18), 0 0 40px rgba(167,139,250,0.08);
-  --shadow-glow-danger: 0 0 20px rgba(248,113,113,0.18), 0 0 40px rgba(248,113,113,0.08);
-  --shadow-inner-glow: inset 0 1px 2px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.2);
-}
 
 @layer base {
   html {

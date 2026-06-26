@@ -610,6 +610,22 @@ export function SettingsPage() {
                 </motion.button>
               )}
               <motion.button
+                onClick={() => {
+                  if (confirm('确定退出登录吗？')) {
+                    dispatch({ type: 'LOGOUT' });
+                    navigate('/');
+                  }
+                }}
+                className="w-full px-4 py-3.5 flex items-center gap-3 text-left border-b border-pair-border/40 hover:bg-pair-danger/5 transition-colors group"
+                whileHover={{ x: 4 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pair-danger/10 to-red-50/30 flex items-center justify-center">
+                  <LogOut size={16} className="text-pair-danger" />
+                </div>
+                <span className="text-sm text-pair-danger">退出登录</span>
+              </motion.button>
+              <motion.button
                 onClick={handleReset}
                 className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-pair-danger/5 transition-colors group"
                 whileHover={{ x: 4 }}

@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useApi, useActionDispatch } from '../stores/AppStore';
 import { formatDate, formatTime, formatDuration, getStateLabel, getStateColor } from '../utils/time';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DreamParticles } from '../components/DreamParticles';
 import { GlowingOrb } from '../components/DreamEffects';
-import { ArrowLeft, ChevronDown, ChevronUp, Clock, Pause, AlertTriangle, CheckCircle2, Circle, XCircle, Sparkles, Loader2, RefreshCw, TrendingUp, Activity, Trash2 } from 'lucide-react';
+import { EmptyState } from '../components/DesignSystem';
+import { ArrowLeft, ChevronDown, ChevronUp, Clock, Pause, AlertTriangle, CheckCircle2, Circle, XCircle, Sparkles, Loader2, RefreshCw, TrendingUp, Activity, Trash2, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useKeyboardShortcuts } from '../utils/keyboard';
 import type { ActionItem } from '../types';
 
 const stateIcons: Record<string, typeof CheckCircle2> = {
@@ -33,6 +35,14 @@ export function TimelinePage() {
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterState, setFilterState] = useState<string>('all');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useKeyboardShortcuts({
+    onEscape: () => navigate('/'),
+    onSearch: () => searchInputRef.current?.focus(),
+  });
 
   const fetchInsight = async () => {
     if (!api.isAuthenticated()) return;
@@ -67,8 +77,20 @@ export function TimelinePage() {
     }
   }, []);
 
+  // Filtered actions
+  const filteredActions = myActions.filter((action) => {
+    const matchesSearch = !searchQuery ||
+      action.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (action.resultNote && action.resultNote.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesFilter = filterState === 'all' ||
+      (filterState === 'completed' && action.state === 'completed') ||
+      (filterState === 'active' && action.state === 'active') ||
+      (filterState === 'other' && action.state !== 'completed' && action.state !== 'active');
+    return matchesSearch && matchesFilter;
+  });
+
   const grouped = new Map<string, ActionItem[]>();
-  myActions
+  filteredActions
     .sort((a, b) => b.createdAt - a.createdAt)
     .forEach((action) => {
       const dateKey = new Date(action.createdAt).toDateString();
@@ -78,10 +100,10 @@ export function TimelinePage() {
 
   const dates = Array.from(grouped.entries());
 
-  // Stats for mini summary
-  const totalActions = myActions.length;
-  const completedActions = myActions.filter(a => a.state === 'completed').length;
-  const totalDuration = myActions.reduce((sum, a) => sum + a.totalDurationMs, 0);
+  // Stats for mini summary (based on filtered)
+  const totalActions = filteredActions.length;
+  const completedActions = filteredActions.filter(a => a.state === 'completed').length;
+  const totalDuration = filteredActions.reduce((sum, a) => sum + a.totalDurationMs, 0);
 
   return (
     <div className="relative min-h-[100dvh] dream-bg overflow-hidden">
@@ -209,23 +231,73 @@ export function TimelinePage() {
             </motion.div>
           )}
 
-          {dates.length === 0 ? (
+          {/* Search & Filter */}
+          {myActions.length > 0 && (
             <motion.div
-              className="text-center py-16"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
+              className="mb-5 space-y-3"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.4 }}
             >
-              <motion.div
-                className="w-20 h-20 rounded-3xl bg-pair-surface/80 flex items-center justify-center mx-auto mb-5 shadow-card border border-pair-border/30"
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                <Activity size={32} className="text-pair-textMuted/30" />
-              </motion.div>
-              <p className="text-sm text-pair-textSecondary/80 font-medium">还没有行动记录</p>
-              <p className="text-xs text-pair-textMuted/60 mt-2">开始你的第一次行动，这里会显示时间线</p>
+              <div className="relative">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-pair-textMuted/50" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="搜索行动标题或备注... (/)"
+                  className="w-full pl-10 pr-10 py-3 rounded-2xl bg-pair-surface/80 backdrop-blur border border-pair-border/40 text-sm text-pair-text placeholder:text-pair-textMuted/50 focus:outline-none focus:ring-2 focus:ring-pair-primary/20 focus:border-pair-primary/30 transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-pair-surfaceAlt transition-colors"
+                  >
+                    <X size={14} className="text-pair-textMuted/50" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <SlidersHorizontal size={13} className="text-pair-textMuted/40 flex-shrink-0" />
+                {[
+                  { key: 'all', label: '全部' },
+                  { key: 'completed', label: '已完成' },
+                  { key: 'active', label: '进行中' },
+                  { key: 'other', label: '未完成' },
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => setFilterState(f.key)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                      filterState === f.key
+                        ? 'bg-pair-primary/15 text-pair-primary border border-pair-primary/20'
+                        : 'bg-pair-surface/60 text-pair-textMuted/70 border border-pair-border/30 hover:bg-pair-surfaceAlt/80'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </motion.div>
+          )}
+
+          {dates.length === 0 ? (
+            <EmptyState
+              icon={myActions.length === 0 ? <Activity size={32} className="text-pair-textMuted/30" /> : <Search size={32} className="text-pair-textMuted/30" />}
+              title={myActions.length === 0 ? '还没有行动记录' : '没有找到匹配的行动'}
+              description={myActions.length === 0 ? '开始你的第一次行动，这里会显示时间线' : '尝试调整搜索词或筛选条件'}
+              action={
+                myActions.length > 0 && (searchQuery || filterState !== 'all') ? (
+                  <button
+                    onClick={() => { setSearchQuery(''); setFilterState('all'); }}
+                    className="px-4 py-2 rounded-xl bg-pair-primary/10 text-pair-primary text-xs font-medium hover:bg-pair-primary/20 transition-colors"
+                  >
+                    清除筛选
+                  </button>
+                ) : undefined
+              }
+            />
           ) : (
             <div className="space-y-5">
               {dates.map(([dateKey, actions], dateIndex) => {

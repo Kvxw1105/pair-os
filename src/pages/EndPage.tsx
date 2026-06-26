@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppState, useActionDispatch } from '../stores/AppStore';
 import { formatDuration } from '../utils/time';
@@ -32,6 +32,39 @@ export function EndPage() {
   const [step, setStep] = useState(1);
 
   const [showCelebration, setShowCelebration] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Draft auto-save
+  const DRAFT_KEY = `endActionDraft_${id}`;
+
+  useEffect(() => {
+    // Load draft on mount
+    try {
+      const draft = localStorage.getItem(DRAFT_KEY);
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        if (parsed.selectedResult) setSelectedResult(parsed.selectedResult);
+        if (parsed.completion !== undefined) setCompletion(parsed.completion);
+        if (parsed.customPercent !== undefined) setCustomPercent(parsed.customPercent);
+        if (parsed.useCustom !== undefined) setUseCustom(parsed.useCustom);
+        if (parsed.note !== undefined) setNote(parsed.note);
+        if (parsed.step !== undefined) setStep(parsed.step);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    // Save draft on change
+    const draft = {
+      selectedResult,
+      completion,
+      customPercent,
+      useCustom,
+      note,
+      step,
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }, [selectedResult, completion, customPercent, useCustom, note, step]);
 
   if (!action) {
     return (
@@ -72,8 +105,33 @@ export function EndPage() {
 
   const handleFinish = async (percent: number | null) => {
     if (!selectedResult) return;
+
+    // Validation
+    const newErrors: Record<string, string> = {};
+
+    if (selectedResult === 'partial') {
+      const finalPercent = getFinalPercent();
+      if (finalPercent === null) {
+        newErrors.percent = '请选择或输入完成百分比';
+      }
+    }
+
+    if (selectedResult === 'failed') {
+      if (!note.trim()) {
+        newErrors.note = '请选择失败原因或填写备注';
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setErrors({});
+
     const result = selectedResult === 'failed' ? 'abandoned' : selectedResult === 'cancelled' ? 'abandoned' : selectedResult;
     await actionDispatch.endAction(action.id, result as 'completed' | 'partial' | 'abandoned', percent, note.trim());
+    localStorage.removeItem(DRAFT_KEY);
     playCelebration();
     setShowCelebration(true);
     setTimeout(() => {
@@ -255,6 +313,12 @@ export function EndPage() {
                         <span className="text-sm text-pair-textMuted">%</span>
                       </div>
                     </motion.div>
+                    {errors.percent && (
+                      <p className="text-xs text-pair-danger mt-2 flex items-center gap-1">
+                        <AlertCircle size={12} />
+                        {errors.percent}
+                      </p>
+                    )}
                   </motion.div>
                 )}
 
@@ -286,6 +350,12 @@ export function EndPage() {
                         </motion.button>
                       ))}
                     </div>
+                    {errors.note && (
+                      <p className="text-xs text-pair-danger mt-2 flex items-center gap-1">
+                        <AlertCircle size={12} />
+                        {errors.note}
+                      </p>
+                    )}
                   </motion.div>
                 )}
 
@@ -308,6 +378,12 @@ export function EndPage() {
                     className="w-full px-4 py-3 bg-pair-surface/80 backdrop-blur rounded-2xl border border-pair-border/60 text-sm text-pair-text focus:border-pair-accent focus:outline-none focus:ring-2 focus:ring-pair-accent/10 resize-none transition-all duration-300 hover:bg-pair-surface/90"
                   />
                   <p className="text-[11px] text-pair-textMuted/60 mt-1.5">备注会出现在时间线中，帮助AI理解你的行动模式。</p>
+                  {errors.note && (
+                    <p className="text-xs text-pair-danger mt-1.5 flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      {errors.note}
+                    </p>
+                  )}
                 </motion.div>
 
                 <div className="flex-1" />

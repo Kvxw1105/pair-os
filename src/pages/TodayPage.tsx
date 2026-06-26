@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useAppDispatch, useActiveAction, useAwayAction, useTodayActions, useActionDispatch, useApi, useCheckIn, usePartnerMessages } from '../stores/AppStore';
 import { formatDuration, formatDateFull, getStateLabel } from '../utils/time';
 import { playActionStart, playButtonClick, playNavigation, playCheckIn, playThud } from '../utils/sound';
+import { useKeyboardShortcuts } from '../utils/keyboard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DreamParticles } from '../components/DreamParticles';
 import { GlowingOrb } from '../components/DreamEffects';
@@ -11,7 +12,7 @@ import {
 } from '../components/DesignSystem';
 import {
   Pause, RotateCcw, ChevronRight, Zap, Sparkles, User, Medal,
-  Target, TrendingUp, Wind, Compass, Loader2, Flame, Clock, Wand2, ListChecks, ArrowRight, X
+  Target, TrendingUp, Wind, Compass, Loader2, Flame, Clock, Wand2, ListChecks, ArrowRight, X, Trash2
 } from 'lucide-react';
 
 const containerVariants = {
@@ -58,6 +59,16 @@ export function TodayPage() {
   const [aiProcessResult, setAiProcessResult] = useState<{ normalized: string; steps: string[] } | null>(null);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(false);
+  const actionInputRef = useRef<HTMLInputElement>(null);
+
+  useKeyboardShortcuts({
+    onEscape: () => {
+      if (showAiPanel) setShowAiPanel(false);
+      else if (showLogModal) setShowLogModal(false);
+      else if (showSuggestions) setShowSuggestions(false);
+    },
+    onNewAction: () => actionInputRef.current?.focus(),
+  });
 
   const profile = state.profile;
 
@@ -381,13 +392,14 @@ export function TodayPage() {
               <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-pair-primary/5 via-pair-accent/3 to-pair-stuck/5 opacity-0 group-focus-within:opacity-100 transition-all duration-500 blur-xl scale-[1.03]" />
 
               <input
+                ref={actionInputRef}
                 type="text"
                 value={inputValue}
                 onChange={(e) => handleInputChange(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSmartStart()}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
-                placeholder="说一句话，开始行动..."
+                placeholder="说一句话，开始行动... (按 N 聚焦)"
                 enterKeyHint="go"
                 className="relative w-full px-5 py-5 pr-20 bg-pair-surface/90 backdrop-blur-md rounded-3xl border border-pair-border/40 focus:border-pair-accent/40 focus:outline-none focus:ring-2 focus:ring-pair-accent/10 text-sm shadow-card transition-all duration-500 placeholder:text-pair-textMuted/50 hover:shadow-card-hover"
               />
@@ -881,6 +893,20 @@ export function TodayPage() {
                       }>
                         {getStateLabel(action.state)}
                       </StatusBadge>
+                      <motion.button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm('确定删除这个行动吗？')) {
+                            dispatch({ type: 'DELETE_ACTION', actionId: action.id });
+                          }
+                        }}
+                        className="opacity-0 group-hover/item:opacity-100 p-1.5 rounded-lg hover:bg-pair-danger/10 text-pair-textMuted hover:text-pair-danger transition-all"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        title="删除"
+                      >
+                        <Trash2 size={14} />
+                      </motion.button>
                     </motion.div>
                   ))}
                 </div>
