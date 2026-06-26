@@ -40,6 +40,8 @@ const possibleDistPaths: string[] = [
   // then ../../dist = project-root/dist
   path.join(scriptDir, '..', '..', 'dist'),
   path.join(scriptDir, '..', '..', '..', 'dist'),
+  // From scriptDir itself (server/dist/ + static = server/dist/static/)
+  path.join(scriptDir, 'static'),
   // From process.cwd()
   path.join(process.cwd(), 'dist'),
   path.join(process.cwd(), '..', 'dist'),
@@ -48,6 +50,8 @@ const possibleDistPaths: string[] = [
   '/opt/render/project/dist',
   '/opt/render/project/pair-os/dist',
   '/app/dist',
+  '/opt/render/project/src/server/dist/static',
+  '/opt/render/project/server/dist/static',
 ];
 
 let frontendDist: string | null = null;
