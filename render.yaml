@@ -1,3 +1,8 @@
+databases:
+  - name: pair-os-db
+    plan: free
+    ipAllowList: []
+
 services:
   - type: web
     name: pair-os
@@ -18,7 +23,9 @@ services:
       - key: PORT
         value: 10000
       - key: DATABASE_URL
-        value: "postgresql://user:pass@host:5432/db"
+        fromDatabase:
+          name: pair-os-db
+          property: connectionString
       - key: JWT_SECRET
         generateValue: true
     healthCheckPath: /health
